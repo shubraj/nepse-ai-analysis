@@ -1,0 +1,18 @@
+[project]
+name = "merolagani-com"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "bs4>=0.0.2",
+    "requests>=2.32.5",
+    "google-genai>=1.0.0",
+    "python-dotenv>=1.0.0",
+    "fastapi>=0.115.0",
+    "uvicorn>=0.32.0",
+    "sqlalchemy>=2.0.0",
+    "celery[redis]>=5.4.0",
+    "psycopg2-binary>=2.9.10",
+    "curl-cffi>=0.14.0",
+]

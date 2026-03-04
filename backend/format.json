@@ -1,0 +1,98 @@
+{
+  "ticker_symbol": "CBL",
+  "company_name": "Civil Bank Ltd",
+  "sector": "Commercial Banking",
+  "market_position": "Mid-tier commercial bank",
+
+  "investment_snapshot": {
+    "investment_quality_score": "6/10",
+    "investment_quality_score_numeric": 6,
+    "risk_level": "Moderate to High",
+    "risk_score_numeric": 6,
+    "return_potential": "Moderate",
+    "return_potential_numeric": 5,
+    "suitability": "Selective allocation, not core portfolio holding"
+  },
+
+  "valuation_analysis": {
+    "valuation_status": "Fairly Valued",
+    "valuation_score_numeric": 0,
+    "pe_interpretation": "Reasonable for mid-tier bank",
+    "pb_interpretation": "Trading at premium to book value",
+    "value_or_growth_style": "Value / Recovery Play"
+  },
+
+  "short_term_outlook_0_to_12_months": {
+    "growth_probability": "Low to Moderate",
+    "growth_probability_numeric": 2,
+    "expected_price_range_change": "-8% to +8%",
+    "expected_return_low_pct": -8,
+    "expected_return_high_pct": 8,
+    "key_triggers": [],
+    "strategy": "Short-term traders only if momentum improves"
+  },
+
+  "mid_term_outlook_1_to_3_years": {
+    "growth_probability": "Moderate",
+    "growth_probability_numeric": 3,
+    "expected_annual_return": "6%–12%",
+    "expected_annual_return_min_pct": 6,
+    "expected_annual_return_max_pct": 12,
+    "key_drivers": [],
+    "strategy": "Hold if accumulation done at reasonable levels"
+  },
+
+  "long_term_outlook_3_to_5_years": {
+    "growth_probability": "Moderate (if fundamentals improve)",
+    "growth_probability_numeric": 3,
+    "expected_annual_return_best_case": "8%–15%",
+    "expected_annual_return_best_case_min_pct": 8,
+    "expected_annual_return_best_case_max_pct": 15,
+    "investment_theme": "Turnaround / Undervalued Banking Play",
+    "long_term_risk": "Higher than top-tier banks",
+    "long_term_risk_score_numeric": 6
+  },
+
+  "dividend_profile": {
+    "dividend_consistency": "Low",
+    "dividend_consistency_score_numeric": 2,
+    "income_reliability": "Weak",
+    "income_reliability_score_numeric": 2,
+    "suitable_for_income_investors": false
+  },
+
+  "financial_strength_monitoring": {
+    "eps_trend": "Needs consistent growth",
+    "capital_strength": "Adequate but not sector-leading",
+    "asset_quality": "Monitor NPL levels closely",
+    "liquidity_position": "Sector dependent"
+  },
+
+  "risk_analysis": {
+    "primary_risks": [],
+    "volatility_level": "Moderate",
+    "volatility_score_numeric": 5
+  },
+
+  "portfolio_strategy_recommendation": {
+    "allocation_size": "5%–10% of portfolio maximum",
+    "allocation_max_pct_numeric": 10,
+    "holding_period": "Minimum 2–3 years",
+    "holding_period_years_numeric": 2.5,
+    "buy_strategy": "Staggered accumulation, avoid lump-sum heavy entry"
+  },
+
+  "who_should_invest": [],
+  "who_should_avoid": [],
+
+  "final_decision": {
+    "invest_now": "Yes, but only partial allocation",
+    "invest_score_numeric": 0.5,
+    "wait_option": "Better to wait if sector sentiment weak",
+    "confidence_level": "Medium-Low compared to top commercial banks",
+    "confidence_score_numeric": 4,
+    "risk_tier": "Moderate",
+    "investability_label": "Moderate",
+    "entry_timing": "Now"
+  }
+}

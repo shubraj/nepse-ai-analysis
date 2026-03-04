@@ -1,0 +1,19 @@
+# Don't send these to the Docker build context
+.venv
+venv
+__pycache__
+*.pyc
+.pytest_cache
+.mypy_cache
+.env
+.env.*
+!.env.example
+data/
+logs/
+*.db
+*.sqlite3
+.git
+.gitignore
+*.md
+Dockerfile
+.dockerignore

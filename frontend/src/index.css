@@ -1,0 +1,15 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Fraunces", ui-serif, Georgia, serif;
+  --color-brand: #0d9488;
+  --color-brand-hover: #0f766e;
+  --color-surface: #fafaf9;
+  --color-muted: #78716c;
+  --color-border: #e7e5e4;
+}
+
+.font-display {
+  font-family: var(--font-display), ui-serif, Georgia, serif;
+}
