@@ -2,7 +2,6 @@
 .env
 .env.local
 .env.*.local
-backend/.env
 *.pem
 
 # Python
@@ -12,24 +11,49 @@ __pycache__/
 *.so
 .venv/
 venv/
-backend/.venv/
 .pytest_cache/
 .mypy_cache/
+.coverage
+htmlcov/
 *.egg-info/
 .eggs/
 
-# Backend data and logs
+# Backend
+backend/.env
+backend/.venv/
 backend/data/
 backend/logs/
 *.db
 *.sqlite3
 
-# Node / frontend
+# Node (root, frontend, mobile)
 node_modules/
 frontend/node_modules/
 frontend/dist/
+frontend/dist-ssr/
+mobile/node_modules/
 dist/
 *.local
+
+# Expo / React Native (mobile)
+mobile/.expo/
+mobile/expo-env.d.ts
+mobile/ios/Pods/
+mobile/ios/build/
+mobile/android/build/
+mobile/android/.gradle/
+mobile/android/app/build/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+web-build/
+
+# Metro / bundler caches
+.metro-health-check*
+node_modules/.cache/
 
 # Build and IDE
 .idea/
@@ -48,7 +72,11 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+lerna-debug.log*
 
-# Optional: lockfiles if you want to ignore (usually keep them)
-# package-lock.json
-# uv.lock
+# Docker
+.docker/
+
+# OS
+Thumbs.db
+*.DS_Store
