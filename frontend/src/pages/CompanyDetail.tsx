@@ -25,6 +25,10 @@ function setPageMeta(title: string, description: string, path?: string) {
   if (ogTitle) ogTitle.setAttribute("content", title);
   const ogDesc = document.querySelector('meta[property="og:description"]');
   if (ogDesc) ogDesc.setAttribute("content", description);
+  const twTitle = document.querySelector('meta[name="twitter:title"]');
+  if (twTitle) twTitle.setAttribute("content", title);
+  const twDesc = document.querySelector('meta[name="twitter:description"]');
+  if (twDesc) twDesc.setAttribute("content", description);
   if (path) {
     const ogUrl = document.querySelector('meta[property="og:url"]');
     const canonical = document.querySelector('link[rel="canonical"]');
@@ -42,10 +46,14 @@ function resetPageMeta() {
   if (ogTitle) ogTitle.setAttribute("content", DEFAULT_DOC_TITLE);
   const ogDesc = document.querySelector('meta[property="og:description"]');
   if (ogDesc) ogDesc.setAttribute("content", DEFAULT_META_DESCRIPTION);
+  const twTitle = document.querySelector('meta[name="twitter:title"]');
+  if (twTitle) twTitle.setAttribute("content", DEFAULT_DOC_TITLE);
+  const twDesc = document.querySelector('meta[name="twitter:description"]');
+  if (twDesc) twDesc.setAttribute("content", DEFAULT_META_DESCRIPTION);
   const ogUrl = document.querySelector('meta[property="og:url"]');
-  if (ogUrl) ogUrl.setAttribute("content", "https://stockai.shubraj.com/");
+  if (ogUrl) ogUrl.setAttribute("content", "https://nepseai.shubraj.com/");
   const canonical = document.querySelector('link[rel="canonical"]');
-  if (canonical) canonical.setAttribute("href", "https://stockai.shubraj.com/");
+  if (canonical) canonical.setAttribute("href", "https://nepseai.shubraj.com/");
 }
 
 function formatAnalysisDate(analyzed_at: string) {

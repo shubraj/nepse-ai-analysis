@@ -1,13 +1,15 @@
 """API routes (companies, analyses)."""
 
+import html
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import Response
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from cache import get as cache_get, set as cache_set
-from config import CACHE_KEY_PREFIX
+from config import CACHE_KEY_PREFIX, SITE_URL
 from database import get_db
 from models.company import Company
 from models.company_analysis import CompanyAnalysis
@@ -15,6 +17,39 @@ from schemas.company import CompanyResponse
 from schemas.company_analysis import CompanyAnalysisListItem, CompanyAnalysisResponse
 
 router = APIRouter()
+
+
+def _escape_loc(loc: str) -> str:
+    return html.escape(loc, quote=True)
+
+
+def _sitemap_xml(symbols: list[str]) -> str:
+    lines = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+    ]
+    for loc, changefreq, priority in [
+        (f"{SITE_URL}/", "daily", "1.0"),
+        (f"{SITE_URL}/companies", "daily", "0.9"),
+    ]:
+        lines.append(f"  <url><loc>{_escape_loc(loc)}</loc><changefreq>{changefreq}</changefreq><priority>{priority}</priority></url>")
+    for symbol in symbols:
+        loc = f"{SITE_URL}/company/{symbol}"
+        lines.append(f"  <url><loc>{_escape_loc(loc)}</loc><changefreq>daily</changefreq><priority>0.8</priority></url>")
+    lines.append("</urlset>")
+    return "\n".join(lines)
+
+
+@router.get("/sitemap.xml")
+def get_sitemap(db: Session = Depends(get_db)):
+    cache_key = f"{CACHE_KEY_PREFIX}sitemap"
+    cached = cache_get(cache_key)
+    if cached is not None:
+        return Response(content=cached, media_type="application/xml")
+    symbols = [r[0] for r in db.query(Company.symbol).order_by(Company.symbol).all()]
+    xml_body = _sitemap_xml(symbols)
+    cache_set(cache_key, xml_body)
+    return Response(content=xml_body, media_type="application/xml")
 
 
 def _companies_list_key(skip: int, limit: int, q: str | None, risk_tier: str | None, investability: str | None, entry_timing: str | None, sector: str | None = None) -> str:

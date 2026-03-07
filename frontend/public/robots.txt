@@ -1,4 +1,5 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://stockai.shubraj.com/sitemap.xml
+# Dynamic sitemap: homepage, /companies, and all /company/{symbol} URLs from the API
+Sitemap: https://nepseai.shubraj.com/api/sitemap.xml

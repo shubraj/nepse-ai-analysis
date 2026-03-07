@@ -26,6 +26,7 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
 
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173")
+SITE_URL = os.getenv("SITE_URL", "https://nepseai.shubraj.com").rstrip("/")
 MAX_RETRIES = int(os.getenv("MAX_RETRIES", "3"))
 RETRY_DELAY = float(os.getenv("RETRY_DELAY", "1.0"))
 
