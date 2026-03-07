@@ -104,7 +104,7 @@ export function Dashboard() {
           Company analysis, risk profile, and entry timing for the Nepal stock market.
         </p>
         <p className="mx-auto mt-3 max-w-xl text-xs text-stone-500">
-          AI-based analysis from historical data. Not professional investment advice. See footer disclaimer.
+          AI-based analysis from historical data. Not professional investment advice.
         </p>
         <Link
           to="/companies"
