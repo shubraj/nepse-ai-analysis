@@ -12,7 +12,14 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error((err as { detail?: string }).detail ?? "Request failed");
+    const d = (err as { detail?: string | unknown[] }).detail;
+    const message =
+      typeof d === "string"
+        ? d
+        : Array.isArray(d) && d.length > 0 && d[0] && typeof (d[0] as { msg?: string }).msg === "string"
+          ? (d[0] as { msg: string }).msg
+          : "Request failed";
+    throw new Error(message);
   }
   return res.json() as Promise<T>;
 }
@@ -55,4 +62,11 @@ export const api = {
     request<import("../types/company").CompanyAnalysisResponse>(
       `/companies/${encodeURIComponent(symbol)}/analyses/${analysisId}`
     ),
+  getSuggestions: (params: { amount_npr: number; goal: "short_term" | "mid_term" | "long_term"; max_stocks?: number }) => {
+    const sp = new URLSearchParams();
+    sp.set("amount_npr", String(params.amount_npr));
+    sp.set("goal", params.goal);
+    if (params.max_stocks != null) sp.set("max_stocks", String(params.max_stocks));
+    return request<import("../types/company").SuggestionsResponse>(`/suggestions?${sp.toString()}`);
+  },
 };

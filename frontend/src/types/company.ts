@@ -20,3 +20,20 @@ export interface CompanyAnalysisResponse {
   analyzed_at: string;
   analysis: Record<string, unknown>;
 }
+
+export interface SuggestionItem {
+  symbol: string;
+  name: string;
+  sector: string;
+  suggested_amount_npr: number;
+  allocation_pct: number;
+  recommendation: string;
+  risk_tier: string;
+  outlook_label: string;
+  expected_return_pct?: number | null;
+}
+
+export interface SuggestionsResponse {
+  suggestions: SuggestionItem[];
+  expected_overall_return_pct?: number | null;
+}
