@@ -13,13 +13,11 @@ import { api } from "../../src/api/client";
 import type { Company } from "../../src/types/company";
 import {
   getRiskTier,
-  getInvestability,
-  getEntryTiming,
+  getRecommendation,
   riskTierLabel,
-  investabilityLabel,
-  entryTimingLabel,
+  recommendationLabel,
 } from "../../src/lib/screening";
-import type { RiskTier, Investability, EntryTiming } from "../../src/lib/screening";
+import type { RiskTier, Recommendation } from "../../src/lib/screening";
 
 function CompanyCard({
   company,
@@ -27,11 +25,10 @@ function CompanyCard({
   company: Company;
 }) {
   const risk = getRiskTier(company.analysis as Record<string, unknown>);
-  const inv = getInvestability(company.analysis as Record<string, unknown>);
-  const timing = getEntryTiming(company.analysis as Record<string, unknown>);
+  const rec = getRecommendation(company.analysis as Record<string, unknown>);
 
-  const riskStyle = risk === "low" ? styles.badgeGreen : risk === "high" ? styles.badgeRed : styles.badgeAmber;
-  const timingStyle = timing === "now" ? styles.badgeGreen : timing === "avoid" ? styles.badgeRed : styles.badgeAmber;
+  const recStyle = rec === "consider" ? styles.badgeGreen : rec === "avoid" ? styles.badgeRed : styles.badgeAmber;
+  const riskStyle = risk === "low" ? styles.badgeSky : risk === "high" ? styles.badgeRed : styles.badgeAmber;
 
   return (
     <Link href={`/company/${company.symbol}`} asChild>
@@ -40,9 +37,8 @@ function CompanyCard({
         <Text style={styles.name} numberOfLines={2}>{company.name}</Text>
         <Text style={styles.sector}>{company.sector ?? "N/A"}</Text>
         <View style={styles.badges}>
+          {rec && <View style={[styles.badge, recStyle]}><Text style={styles.badgeText}>{recommendationLabel[rec as Recommendation]}</Text></View>}
           {risk && <View style={[styles.badge, riskStyle]}><Text style={styles.badgeText}>{riskTierLabel[risk as RiskTier]}</Text></View>}
-          {inv && <View style={[styles.badge, styles.badgeTeal]}><Text style={styles.badgeText}>{investabilityLabel[inv as Investability]}</Text></View>}
-          {timing && <View style={[styles.badge, timingStyle]}><Text style={styles.badgeText}>{entryTimingLabel[timing as EntryTiming]}</Text></View>}
         </View>
       </TouchableOpacity>
     </Link>
@@ -209,31 +205,31 @@ export default function Dashboard() {
       </View>
 
       <Section
-        title="Most investable"
-        subtitle="High quality score and conviction. Suitable for core allocation."
+        title="Consider now"
+        subtitle="High quality and conviction. Suitable for core allocation."
         companies={mostInvestable}
         loading={loading}
         viewAllHref="/companies?investability=high"
-        viewAllLabel="View all most investable →"
+        viewAllLabel="View all →"
       />
       <Section
-        title="Low risk"
+        title="Lower risk"
         subtitle="Lower risk profile. Suitable for conservative investors."
         companies={lowRisk}
         loading={loading}
         viewAllHref="/companies?risk_tier=low"
-        viewAllLabel="View all low risk →"
+        viewAllLabel="View all →"
       />
       <Section
-        title="High risk / High return"
+        title="Higher risk / return"
         subtitle="Higher volatility and return potential. For risk-tolerant investors."
         companies={highRisk}
         loading={loading}
         viewAllHref="/companies?risk_tier=high"
-        viewAllLabel="View all high risk →"
+        viewAllLabel="View all →"
       />
       <Section
-        title="Time to invest"
+        title="Consider now"
         subtitle="Favorable entry timing. Consider accumulation."
         companies={timeToInvest}
         loading={loading}
@@ -241,8 +237,8 @@ export default function Dashboard() {
         viewAllLabel="View all →"
       />
       <Section
-        title="Wait for better entry"
-        subtitle="Partial or conditional. Wait for dips or clarity."
+        title="Watch list"
+        subtitle="Wait for better entry or more clarity."
         companies={waitForEntry}
         loading={loading}
         viewAllHref="/companies?entry_timing=wait"
@@ -323,6 +319,7 @@ const styles = StyleSheet.create({
   badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999 },
   badgeText: { fontSize: 11, fontWeight: "500" },
   badgeGreen: { backgroundColor: "#d1fae5" },
+  badgeSky: { backgroundColor: "#e0f2fe" },
   badgeRed: { backgroundColor: "#fee2e2" },
   badgeAmber: { backgroundColor: "#fef3c7" },
   badgeTeal: { backgroundColor: "#ccfbf1" },

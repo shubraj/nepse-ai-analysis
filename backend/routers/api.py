@@ -17,8 +17,20 @@ from schemas.company_analysis import CompanyAnalysisListItem, CompanyAnalysisRes
 router = APIRouter()
 
 
-def _companies_list_key(skip: int, limit: int, q: str | None, risk_tier: str | None, investability: str | None, entry_timing: str | None) -> str:
-    return f"{CACHE_KEY_PREFIX}companies:list:{skip}:{limit}:{q or ''}:{risk_tier or ''}:{investability or ''}:{entry_timing or ''}"
+def _companies_list_key(skip: int, limit: int, q: str | None, risk_tier: str | None, investability: str | None, entry_timing: str | None, sector: str | None = None) -> str:
+    return f"{CACHE_KEY_PREFIX}companies:list:{skip}:{limit}:{q or ''}:{risk_tier or ''}:{investability or ''}:{entry_timing or ''}:{sector or ''}"
+
+
+@router.get("/companies/sectors", response_model=list[str])
+def list_sectors(db: Session = Depends(get_db)):
+    cache_key = f"{CACHE_KEY_PREFIX}companies:sectors"
+    cached = cache_get(cache_key)
+    if cached is not None:
+        return cached
+    rows = db.query(Company.sector).filter(Company.sector.isnot(None), Company.sector != "").distinct().order_by(Company.sector).all()
+    result = [r[0] for r in rows if r[0]]
+    cache_set(cache_key, result)
+    return result
 
 
 @router.get("/companies", response_model=list[CompanyResponse])
@@ -30,8 +42,9 @@ def list_companies(
     risk_tier: str | None = Query(None, description="Filter: low, moderate, high"),
     investability: str | None = Query(None, description="Filter: high, moderate, low"),
     entry_timing: str | None = Query(None, description="Filter: now, wait, avoid"),
+    sector: str | None = Query(None, description="Filter by sector (exact match)"),
 ):
-    cache_key = _companies_list_key(skip, limit, q, risk_tier, investability, entry_timing)
+    cache_key = _companies_list_key(skip, limit, q, risk_tier, investability, entry_timing, sector)
     cached = cache_get(cache_key)
     if cached is not None:
         return [CompanyResponse(**item) for item in cached]
@@ -46,6 +59,8 @@ def list_companies(
                 Company.sector.ilike(f"%{q}%"),
             )
         )
+    if sector and sector.strip():
+        query = query.filter(Company.sector == sector.strip())
     if risk_tier or investability or entry_timing:
         from services.screening import company_matches
         rows = query.limit(500).all()

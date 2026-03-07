@@ -21,6 +21,8 @@ try:
 except ImportError:
     raise ImportError("google-genai is required. Install: pip install google-genai")
 
+from screening_constants import final_decision_from_numerics
+
 _ROOT_DIR = Path(__file__).resolve().parent.parent
 _FORMAT_JSON_PATH = _ROOT_DIR / "format.json"
 
@@ -110,9 +112,11 @@ _EXTRACTION_PROMPT = """You are a senior financial analyst for the Nepal stock m
 12. **Final decision**
     - invest_now: Text. invest_score_numeric: 0 (no), 0.5 (partial), 1 (yes).
     - wait_option: Text. confidence_level: Text. confidence_score_numeric: integer 1–10 (10 = highest confidence).
-    - risk_tier: Exactly one of "Low", "Moderate", "High" (from risk_score_numeric: 1–3 Low, 4–6 Moderate, 7–10 High).
-    - investability_label: Exactly one of "High", "Moderate", "Low" (from quality and confidence: both >=7 High, >=4 Moderate, else Low).
-    - entry_timing: Exactly one of "Now", "Wait", "Avoid" (Now = invest_score_numeric >= 0.5, Wait = partial/conditional, Avoid = 0).
+    - risk_tier: MUST match risk_score_numeric exactly: 1–3 → "Low", 4–6 → "Moderate", 7–10 → "High".
+    - investability_label: MUST match quality and confidence: avg(investment_quality_score_numeric, confidence_score_numeric) >= 7 → "High", >= 4 → "Moderate", else "Low".
+    - entry_timing: MUST match invest_score_numeric: >= 0.5 → "Now", > 0 and < 0.5 → "Wait", 0 → "Avoid".
+    - recommendation: Exactly one of "Consider", "Watch", "Avoid" (Consider = entry_timing Now, Watch = Wait, Avoid = Avoid). Single combined verdict for display.
+    - summary_verdict: One short sentence in plain language (e.g. "Consider for long-term; moderate risk." or "Watch for better entry; higher risk.").
 
 Return valid JSON only, matching the exact schema (all keys and nested structure). No markdown or extra text.
 
@@ -332,7 +336,8 @@ class CompanyExtractorLLM:
         out["who_should_avoid"] = self._clean_string_list(data.get("who_should_avoid"))
         fin = data.get("final_decision") or {}
         out["final_decision"] = self._clean_object(
-            fin, {"invest_now", "wait_option", "confidence_level", "risk_tier", "investability_label", "entry_timing"}
+            fin,
+            {"invest_now", "wait_option", "confidence_level", "risk_tier", "investability_label", "entry_timing", "summary_verdict", "recommendation"},
         )
         out["final_decision"]["invest_score_numeric"] = self._clean_number(fin.get("invest_score_numeric"), 0, 1)
         out["final_decision"]["confidence_score_numeric"] = self._clean_number(fin.get("confidence_score_numeric"), 1, 10)
@@ -343,7 +348,21 @@ class CompanyExtractorLLM:
                     out["final_decision"][key] = v if v in ("Now", "Wait", "Avoid") else None
                 else:
                     out["final_decision"][key] = v if v in ("Low", "Moderate", "High") else None
+        if out["final_decision"].get("recommendation"):
+            v = str(out["final_decision"]["recommendation"]).strip()
+            out["final_decision"]["recommendation"] = v if v in ("Consider", "Watch", "Avoid") else None
+        out["final_decision"]["summary_verdict"] = self._clean_string(fin.get("summary_verdict"))
+        self._enforce_final_decision_consistency(out)
         return out
+
+    def _enforce_final_decision_consistency(self, out: dict[str, Any]) -> None:
+        """Overwrite final_decision labels from numeric scores."""
+        computed = final_decision_from_numerics(out)
+        fd = out.get("final_decision") or {}
+        for key, value in computed.items():
+            if value is not None:
+                fd[key] = value
+        out["final_decision"] = fd
 
     def _clean_ticker(self, v: Any) -> str:
         if v is None:
@@ -464,5 +483,5 @@ class CompanyExtractorLLM:
             "portfolio_strategy_recommendation": {"allocation_size": None, "allocation_max_pct_numeric": None, "holding_period": None, "holding_period_years_numeric": None, "buy_strategy": None},
             "who_should_invest": [],
             "who_should_avoid": [],
-            "final_decision": {"invest_now": None, "invest_score_numeric": None, "wait_option": None, "confidence_level": None, "confidence_score_numeric": None, "risk_tier": None, "investability_label": None, "entry_timing": None},
+            "final_decision": {"invest_now": None, "invest_score_numeric": None, "wait_option": None, "confidence_level": None, "confidence_score_numeric": None, "risk_tier": None, "investability_label": None, "entry_timing": None, "recommendation": None, "summary_verdict": None},
         }

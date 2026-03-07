@@ -1,4 +1,4 @@
-"""Screening labels from analysis: risk tier, investability, entry timing."""
+"""Screening labels from analysis. Thresholds match screening_constants."""
 
 from typing import Any
 

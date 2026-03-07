@@ -1,8 +1,9 @@
-/** Screening labels from analysis */
+/** Screening labels. Display: Recommendation + Risk only. */
 
 export type RiskTier = "low" | "moderate" | "high";
 export type Investability = "high" | "moderate" | "low";
 export type EntryTiming = "now" | "wait" | "avoid";
+export type Recommendation = "consider" | "watch" | "avoid";
 
 function num(a: Record<string, unknown> | null | undefined, ...path: string[]): number | null {
   if (!a) return null;
@@ -60,9 +61,9 @@ export function getEntryTiming(analysis: Record<string, unknown> | null | undefi
 }
 
 export const riskTierLabel: Record<RiskTier, string> = {
-  low: "Low risk",
+  low: "Lower risk",
   moderate: "Moderate risk",
-  high: "High risk",
+  high: "Higher risk",
 };
 
 export const investabilityLabel: Record<Investability, string> = {
@@ -74,5 +75,19 @@ export const investabilityLabel: Record<Investability, string> = {
 export const entryTimingLabel: Record<EntryTiming, string> = {
   now: "Time to invest",
   wait: "Wait for entry",
+  avoid: "Avoid",
+};
+
+export function getRecommendation(analysis: Record<string, unknown> | null | undefined): Recommendation | null {
+  const timing = getEntryTiming(analysis);
+  if (!timing) return null;
+  if (timing === "now") return "consider";
+  if (timing === "wait") return "watch";
+  return "avoid";
+}
+
+export const recommendationLabel: Record<Recommendation, string> = {
+  consider: "Consider",
+  watch: "Watch",
   avoid: "Avoid",
 };

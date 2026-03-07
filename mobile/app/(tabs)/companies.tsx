@@ -15,13 +15,11 @@ import { api } from "../../src/api/client";
 import type { Company } from "../../src/types/company";
 import {
   getRiskTier,
-  getInvestability,
-  getEntryTiming,
+  getRecommendation,
   riskTierLabel,
-  investabilityLabel,
-  entryTimingLabel,
+  recommendationLabel,
 } from "../../src/lib/screening";
-import type { RiskTier, Investability, EntryTiming } from "../../src/lib/screening";
+import type { RiskTier, Recommendation } from "../../src/lib/screening";
 
 function CompanyRow({
   company,
@@ -29,10 +27,9 @@ function CompanyRow({
   company: Company;
 }) {
   const risk = getRiskTier(company.analysis as Record<string, unknown>);
-  const inv = getInvestability(company.analysis as Record<string, unknown>);
-  const timing = getEntryTiming(company.analysis as Record<string, unknown>);
-  const riskStyle = risk === "low" ? styles.badgeGreen : risk === "high" ? styles.badgeRed : styles.badgeAmber;
-  const timingStyle = timing === "now" ? styles.badgeGreen : timing === "avoid" ? styles.badgeRed : styles.badgeAmber;
+  const rec = getRecommendation(company.analysis as Record<string, unknown>);
+  const recStyle = rec === "consider" ? styles.badgeGreen : rec === "avoid" ? styles.badgeRed : styles.badgeAmber;
+  const riskStyle = risk === "low" ? styles.badgeSky : risk === "high" ? styles.badgeRed : styles.badgeAmber;
 
   return (
     <Link href={`/company/${company.symbol}`} asChild>
@@ -41,9 +38,8 @@ function CompanyRow({
         <Text style={styles.name} numberOfLines={2}>{company.name}</Text>
         <Text style={styles.sector}>{company.sector ?? "N/A"}</Text>
         <View style={styles.badges}>
+          {rec && <View style={[styles.badge, recStyle]}><Text style={styles.badgeText}>{recommendationLabel[rec as Recommendation]}</Text></View>}
           {risk && <View style={[styles.badge, riskStyle]}><Text style={styles.badgeText}>{riskTierLabel[risk as RiskTier]}</Text></View>}
-          {inv && <View style={[styles.badge, styles.badgeTeal]}><Text style={styles.badgeText}>{investabilityLabel[inv as Investability]}</Text></View>}
-          {timing && <View style={[styles.badge, timingStyle]}><Text style={styles.badgeText}>{entryTimingLabel[timing as EntryTiming]}</Text></View>}
         </View>
       </TouchableOpacity>
     </Link>
@@ -53,8 +49,8 @@ function CompanyRow({
 export default function CompaniesScreen() {
   const params = useLocalSearchParams<{
     risk_tier?: string;
-    investability?: string;
     entry_timing?: string;
+    investability?: string;
   }>();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
@@ -63,8 +59,8 @@ export default function CompaniesScreen() {
   const [search, setSearch] = useState("");
 
   const risk_tier = params.risk_tier;
-  const investability = params.investability;
   const entry_timing = params.entry_timing;
+  const investability = params.investability;
 
   useEffect(() => {
     let cancelled = false;
@@ -75,8 +71,8 @@ export default function CompaniesScreen() {
         limit: 500,
         q: search || undefined,
         risk_tier,
-        investability,
         entry_timing,
+        investability,
       })
       .then((data) => {
         if (!cancelled) setCompanies(data);
@@ -87,15 +83,14 @@ export default function CompaniesScreen() {
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
-  }, [search, risk_tier, investability, entry_timing]);
+  }, [search, risk_tier, entry_timing, investability]);
 
   const router = useRouter();
   const withAnalysis = companies.filter((c) => c.analysis).length;
 
-  const setFilter = (key: "risk_tier" | "investability" | "entry_timing", value: string | null) => {
+  const setFilter = (key: "risk_tier" | "entry_timing", value: string | null) => {
     const next: Record<string, string> = {};
     if (params.risk_tier && key !== "risk_tier") next.risk_tier = params.risk_tier;
-    if (params.investability && key !== "investability") next.investability = params.investability;
     if (params.entry_timing && key !== "entry_timing") next.entry_timing = params.entry_timing;
     if (value) next[key] = value;
     const qs = new URLSearchParams(next).toString();
@@ -138,7 +133,20 @@ export default function CompaniesScreen() {
       </View>
 
       <View style={styles.filters}>
-        <Text style={styles.filterLabel}>Risk</Text>
+        <Text style={styles.filterLabel}>Recommendation</Text>
+        {(["now", "wait", "avoid"] as const).map((t) => {
+          const label = t === "now" ? "Consider" : t === "wait" ? "Watch" : "Avoid";
+          return (
+            <TouchableOpacity
+              key={t}
+              style={[styles.chip, entry_timing === t && styles.chipActive]}
+              onPress={() => setFilter("entry_timing", entry_timing === t ? null : t)}
+            >
+              <Text style={[styles.chipText, entry_timing === t && styles.chipTextActive]}>{label}</Text>
+            </TouchableOpacity>
+          );
+        })}
+        <Text style={[styles.filterLabel, { marginLeft: 12 }]}>Risk</Text>
         {(["low", "moderate", "high"] as const).map((t) => (
           <TouchableOpacity
             key={t}
@@ -146,26 +154,6 @@ export default function CompaniesScreen() {
             onPress={() => setFilter("risk_tier", risk_tier === t ? null : t)}
           >
             <Text style={[styles.chipText, risk_tier === t && styles.chipTextActive]}>{riskTierLabel[t]}</Text>
-          </TouchableOpacity>
-        ))}
-        <Text style={[styles.filterLabel, { marginLeft: 12 }]}>Investability</Text>
-        {(["high", "moderate", "low"] as const).map((t) => (
-          <TouchableOpacity
-            key={t}
-            style={[styles.chip, investability === t && styles.chipActive]}
-            onPress={() => setFilter("investability", investability === t ? null : t)}
-          >
-            <Text style={[styles.chipText, investability === t && styles.chipTextActive]}>{investabilityLabel[t]}</Text>
-          </TouchableOpacity>
-        ))}
-        <Text style={[styles.filterLabel, { marginLeft: 12 }]}>Timing</Text>
-        {(["now", "wait", "avoid"] as const).map((t) => (
-          <TouchableOpacity
-            key={t}
-            style={[styles.chip, entry_timing === t && styles.chipActive]}
-            onPress={() => setFilter("entry_timing", entry_timing === t ? null : t)}
-          >
-            <Text style={[styles.chipText, entry_timing === t && styles.chipTextActive]}>{entryTimingLabel[t]}</Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -183,7 +171,7 @@ export default function CompaniesScreen() {
             onPress={() => {
               setError(null);
               setLoading(true);
-              api.listCompanies({ limit: 500, q: search || undefined, risk_tier, investability, entry_timing })
+              api.listCompanies({ limit: 500, q: search || undefined, risk_tier, entry_timing, investability })
                 .then(setCompanies)
                 .catch((e) => setError(e instanceof Error ? e.message : "Failed to load"))
                 .finally(() => setLoading(false));
@@ -279,6 +267,7 @@ const styles = StyleSheet.create({
   badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999 },
   badgeText: { fontSize: 11, fontWeight: "500", color: "#1c1917" },
   badgeGreen: { backgroundColor: "#d1fae5" },
+  badgeSky: { backgroundColor: "#e0f2fe" },
   badgeRed: { backgroundColor: "#fee2e2" },
   badgeAmber: { backgroundColor: "#fef3c7" },
   badgeTeal: { backgroundColor: "#ccfbf1" },

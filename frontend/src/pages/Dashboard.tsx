@@ -4,13 +4,11 @@ import { api } from "../api/client";
 import type { Company } from "../types/company";
 import {
   getRiskTier,
-  getInvestability,
-  getEntryTiming,
+  getRecommendation,
   riskTierLabel,
-  investabilityLabel,
-  entryTimingLabel,
+  recommendationLabel,
 } from "../lib/screening";
-import type { RiskTier, Investability, EntryTiming } from "../lib/screening";
+import type { RiskTier, Recommendation } from "../lib/screening";
 
 function CompanyCardRow({
   companies,
@@ -25,8 +23,7 @@ function CompanyCardRow({
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {companies.slice(0, 6).map((c) => {
         const risk = getRiskTier(c.analysis as Record<string, unknown>);
-        const inv = getInvestability(c.analysis as Record<string, unknown>);
-        const timing = getEntryTiming(c.analysis as Record<string, unknown>);
+        const rec = getRecommendation(c.analysis as Record<string, unknown>);
         return (
           <Link
             key={c.id}
@@ -36,28 +33,23 @@ function CompanyCardRow({
             <div className="font-mono text-sm font-semibold text-teal-600">{c.symbol}</div>
             <div className="mt-0.5 text-sm font-medium text-stone-800 line-clamp-2">{c.name}</div>
             <div className="mt-1 text-xs text-stone-500">{c.sector ?? "N/A"}</div>
-            <div className="mt-2 flex flex-wrap gap-1.5">
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              {rec && (
+                <span
+                  className={`inline-flex items-center rounded-lg px-2.5 py-1 text-sm font-medium ${
+                    rec === "consider" ? "bg-emerald-100 text-emerald-800" : rec === "avoid" ? "bg-red-100 text-red-800" : "bg-amber-100 text-amber-800"
+                  }`}
+                >
+                  {recommendationLabel[rec as Recommendation]}
+                </span>
+              )}
               {risk && (
                 <span
-                  className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                    risk === "low" ? "bg-emerald-100 text-emerald-800" : risk === "high" ? "bg-red-100 text-red-800" : "bg-amber-100 text-amber-800"
+                  className={`inline-flex items-center rounded-lg px-2.5 py-1 text-sm font-medium ${
+                    risk === "low" ? "bg-sky-100 text-sky-800" : risk === "high" ? "bg-red-100 text-red-800" : "bg-amber-100 text-amber-800"
                   }`}
                 >
                   {riskTierLabel[risk as RiskTier]}
-                </span>
-              )}
-              {inv && (
-                <span className="rounded-full bg-teal-100 px-2 py-0.5 text-xs font-medium text-teal-800">
-                  {investabilityLabel[inv as Investability]}
-                </span>
-              )}
-              {timing && (
-                <span
-                  className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                    timing === "now" ? "bg-emerald-100 text-emerald-800" : timing === "avoid" ? "bg-red-100 text-red-800" : "bg-amber-100 text-amber-800"
-                  }`}
-                >
-                  {entryTimingLabel[timing as EntryTiming]}
                 </span>
               )}
             </div>
@@ -123,40 +115,40 @@ export function Dashboard() {
       </header>
 
       <section>
-        <h2 className="font-display text-lg font-semibold text-stone-900">Most investable</h2>
-        <p className="text-sm text-stone-500">High quality score and conviction. Suitable for core allocation.</p>
+        <h2 className="font-display text-lg font-semibold text-stone-900">Consider now</h2>
+        <p className="text-sm text-stone-500">High quality and conviction. Suitable for core allocation.</p>
         <CompanyCardRow companies={mostInvestable} loading={loading} />
         {mostInvestable.length > 0 && (
           <Link to="/companies?investability=high" className="mt-2 inline-block text-sm font-medium text-teal-600 hover:text-teal-700">
-            View all most investable →
+            View all →
           </Link>
         )}
       </section>
 
       <section>
-        <h2 className="font-display text-lg font-semibold text-stone-900">Low risk</h2>
+        <h2 className="font-display text-lg font-semibold text-stone-900">Lower risk</h2>
         <p className="text-sm text-stone-500">Lower risk profile. Suitable for conservative investors.</p>
         <CompanyCardRow companies={lowRisk} loading={loading} />
         {lowRisk.length > 0 && (
           <Link to="/companies?risk_tier=low" className="mt-2 inline-block text-sm font-medium text-teal-600 hover:text-teal-700">
-            View all low risk →
+            View all →
           </Link>
         )}
       </section>
 
       <section>
-        <h2 className="font-display text-lg font-semibold text-stone-900">High risk / High return</h2>
+        <h2 className="font-display text-lg font-semibold text-stone-900">Higher risk / return</h2>
         <p className="text-sm text-stone-500">Higher volatility and return potential. For risk-tolerant investors.</p>
         <CompanyCardRow companies={highRisk} loading={loading} />
         {highRisk.length > 0 && (
           <Link to="/companies?risk_tier=high" className="mt-2 inline-block text-sm font-medium text-teal-600 hover:text-teal-700">
-            View all high risk →
+            View all →
           </Link>
         )}
       </section>
 
       <section>
-        <h2 className="font-display text-lg font-semibold text-stone-900">Time to invest</h2>
+        <h2 className="font-display text-lg font-semibold text-stone-900">Consider now</h2>
         <p className="text-sm text-stone-500">Favorable entry timing. Consider accumulation.</p>
         <CompanyCardRow companies={timeToInvest} loading={loading} />
         {timeToInvest.length > 0 && (
@@ -167,8 +159,8 @@ export function Dashboard() {
       </section>
 
       <section>
-        <h2 className="font-display text-lg font-semibold text-stone-900">Wait for better entry</h2>
-        <p className="text-sm text-stone-500">Partial or conditional. Wait for dips or clarity.</p>
+        <h2 className="font-display text-lg font-semibold text-stone-900">Watch list</h2>
+        <p className="text-sm text-stone-500">Wait for better entry or more clarity.</p>
         <CompanyCardRow companies={waitForEntry} loading={loading} />
         {waitForEntry.length > 0 && (
           <Link to="/companies?entry_timing=wait" className="mt-2 inline-block text-sm font-medium text-teal-600 hover:text-teal-700">

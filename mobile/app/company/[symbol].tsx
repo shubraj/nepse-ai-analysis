@@ -16,13 +16,11 @@ import type {
 } from "../../src/types/company";
 import {
   getRiskTier,
-  getInvestability,
-  getEntryTiming,
+  getRecommendation,
   riskTierLabel,
-  investabilityLabel,
-  entryTimingLabel,
+  recommendationLabel,
 } from "../../src/lib/screening";
-import type { RiskTier, Investability, EntryTiming } from "../../src/lib/screening";
+import type { RiskTier, Recommendation } from "../../src/lib/screening";
 
 function formatAnalysisDate(analyzed_at: string) {
   return new Date(analyzed_at).toLocaleString(undefined, {
@@ -297,10 +295,9 @@ export default function CompanyDetailScreen() {
   }
 
   const risk = analysisToShow && getRiskTier(analysisToShow as Record<string, unknown>);
-  const inv = analysisToShow && getInvestability(analysisToShow as Record<string, unknown>);
-  const timing = analysisToShow && getEntryTiming(analysisToShow as Record<string, unknown>);
-  const riskStyle = risk === "low" ? styles.badgeGreen : risk === "high" ? styles.badgeRed : styles.badgeAmber;
-  const timingStyle = timing === "now" ? styles.badgeGreen : timing === "avoid" ? styles.badgeRed : styles.badgeAmber;
+  const rec = analysisToShow && getRecommendation(analysisToShow as Record<string, unknown>);
+  const recStyle = rec === "consider" ? styles.badgeGreen : rec === "avoid" ? styles.badgeRed : styles.badgeAmber;
+  const riskStyle = risk === "low" ? styles.badgeSky : risk === "high" ? styles.badgeRed : styles.badgeAmber;
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -310,15 +307,29 @@ export default function CompanyDetailScreen() {
             <Text style={styles.symbolText}>{company.symbol}</Text>
           </View>
           <View style={styles.badges}>
+            {rec && <View style={[styles.badge, recStyle]}><Text style={styles.badgeText}>{recommendationLabel[rec as Recommendation]}</Text></View>}
             {risk && <View style={[styles.badge, riskStyle]}><Text style={styles.badgeText}>{riskTierLabel[risk as RiskTier]}</Text></View>}
-            {inv && <View style={[styles.badge, styles.badgeTeal]}><Text style={styles.badgeText}>{investabilityLabel[inv as Investability]}</Text></View>}
-            {timing && <View style={[styles.badge, timingStyle]}><Text style={styles.badgeText}>{entryTimingLabel[timing as EntryTiming]}</Text></View>}
           </View>
         </View>
         <Text style={styles.companyName}>{company.name}</Text>
         <Text style={styles.meta}>
-          {company.sector ?? "N/A"}  ·  Updated {new Date(company.updated_at).toLocaleDateString(undefined, { dateStyle: "medium" })}
+          {company.sector ?? "N/A"}  ·  Data as of {new Date(company.updated_at).toLocaleDateString(undefined, { dateStyle: "medium" })}
         </Text>
+        {analysisToShow && (() => {
+          const fin = analysisToShow.final_decision as Record<string, unknown> | undefined;
+          const confidence = fin && typeof fin.confidence_score_numeric === "number" ? fin.confidence_score_numeric : null;
+          const summary = fin && typeof fin.summary_verdict === "string" ? fin.summary_verdict : null;
+          return (
+            <>
+              {summary ? <Text style={styles.summaryVerdict}>&ldquo;{summary}&rdquo;</Text> : null}
+              {confidence !== null && confidence <= 4 ? (
+                <View style={styles.lowConfidence}>
+                  <Text style={styles.lowConfidenceText}>Low confidence in this analysis.</Text>
+                </View>
+              ) : null}
+            </>
+          );
+        })()}
         {analyses.length > 0 && (
           <View style={styles.pickerRow}>
             <Text style={styles.pickerLabel}>Analysis from: </Text>
@@ -400,11 +411,15 @@ const styles = StyleSheet.create({
   badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
   badgeText: { fontSize: 12, fontWeight: "500", color: "#1c1917" },
   badgeGreen: { backgroundColor: "#d1fae5" },
+  badgeSky: { backgroundColor: "#e0f2fe" },
   badgeRed: { backgroundColor: "#fee2e2" },
   badgeAmber: { backgroundColor: "#fef3c7" },
   badgeTeal: { backgroundColor: "#ccfbf1" },
   companyName: { fontSize: 22, fontWeight: "600", color: "#1c1917", marginTop: 12 },
   meta: { fontSize: 13, color: "#78716c", marginTop: 4 },
+  summaryVerdict: { fontSize: 13, color: "#57534e", fontStyle: "italic", marginTop: 8 },
+  lowConfidence: { marginTop: 8, alignSelf: "flex-start", backgroundColor: "#fffbeb", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
+  lowConfidenceText: { fontSize: 12, fontWeight: "500", color: "#92400e" },
   pickerRow: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 8, marginTop: 16 },
   pickerLabel: { fontSize: 13, color: "#78716c" },
   pickerTouch: { paddingVertical: 6, paddingHorizontal: 10, backgroundColor: "#f5f5f4", borderRadius: 8 },

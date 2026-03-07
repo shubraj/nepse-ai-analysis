@@ -93,6 +93,8 @@
     "confidence_score_numeric": 4,
     "risk_tier": "Moderate",
     "investability_label": "Moderate",
-    "entry_timing": "Now"
+    "entry_timing": "Now",
+    "recommendation": "Consider",
+    "summary_verdict": "Consider for long-term, moderate risk."
   }
 }

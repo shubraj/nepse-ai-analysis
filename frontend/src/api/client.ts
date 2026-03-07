@@ -18,6 +18,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  listSectors: () => request<string[]>("/companies/sectors"),
   listCompanies: (params?: {
     skip?: number;
     limit?: number;
@@ -25,6 +26,7 @@ export const api = {
     risk_tier?: string;
     investability?: string;
     entry_timing?: string;
+    sector?: string;
   }) => {
     const sp = new URLSearchParams();
     if (params?.skip != null) sp.set("skip", String(params.skip));
@@ -33,6 +35,7 @@ export const api = {
     if (params?.risk_tier) sp.set("risk_tier", params.risk_tier);
     if (params?.investability) sp.set("investability", params.investability);
     if (params?.entry_timing) sp.set("entry_timing", params.entry_timing);
+    if (params?.sector) sp.set("sector", params.sector);
     const query = sp.toString();
     return request<import("../types/company").Company[]>(`/companies${query ? `?${query}` : ""}`);
   },

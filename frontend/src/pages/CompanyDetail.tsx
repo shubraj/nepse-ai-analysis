@@ -8,13 +8,45 @@ import type {
 } from "../types/company";
 import {
   getRiskTier,
-  getInvestability,
-  getEntryTiming,
+  getRecommendation,
   riskTierLabel,
-  investabilityLabel,
-  entryTimingLabel,
+  recommendationLabel,
 } from "../lib/screening";
-import type { RiskTier, Investability, EntryTiming } from "../lib/screening";
+import type { RiskTier, Recommendation } from "../lib/screening";
+
+const DEFAULT_DOC_TITLE = "NEPSE Research | Free Nepal Stock AI Analysis & NEPSE Fundamental Analysis Tool";
+const DEFAULT_META_DESCRIPTION = "Free NEPSE stock AI analysis and Nepal stock market insights. AI-powered fundamental & technical analysis, screener, valuations for NEPSE. Informational only, not investment advice.";
+
+function setPageMeta(title: string, description: string, path?: string) {
+  document.title = title;
+  const descEl = document.querySelector('meta[name="description"]');
+  if (descEl) descEl.setAttribute("content", description);
+  const ogTitle = document.querySelector('meta[property="og:title"]');
+  if (ogTitle) ogTitle.setAttribute("content", title);
+  const ogDesc = document.querySelector('meta[property="og:description"]');
+  if (ogDesc) ogDesc.setAttribute("content", description);
+  if (path) {
+    const ogUrl = document.querySelector('meta[property="og:url"]');
+    const canonical = document.querySelector('link[rel="canonical"]');
+    const url = `${window.location.origin}${path}`;
+    if (ogUrl) ogUrl.setAttribute("content", url);
+    if (canonical) canonical.setAttribute("href", url);
+  }
+}
+
+function resetPageMeta() {
+  document.title = DEFAULT_DOC_TITLE;
+  const descEl = document.querySelector('meta[name="description"]');
+  if (descEl) descEl.setAttribute("content", DEFAULT_META_DESCRIPTION);
+  const ogTitle = document.querySelector('meta[property="og:title"]');
+  if (ogTitle) ogTitle.setAttribute("content", DEFAULT_DOC_TITLE);
+  const ogDesc = document.querySelector('meta[property="og:description"]');
+  if (ogDesc) ogDesc.setAttribute("content", DEFAULT_META_DESCRIPTION);
+  const ogUrl = document.querySelector('meta[property="og:url"]');
+  if (ogUrl) ogUrl.setAttribute("content", "https://stockai.shubraj.com/");
+  const canonical = document.querySelector('link[rel="canonical"]');
+  if (canonical) canonical.setAttribute("href", "https://stockai.shubraj.com/");
+}
 
 function formatAnalysisDate(analyzed_at: string) {
   return new Date(analyzed_at).toLocaleString(undefined, {
@@ -40,6 +72,16 @@ const OVERVIEW_LABELS: Record<string, string> = {
   "1_year_yield": "1 year yield",
   last_traded_on: "Last traded",
 };
+
+function formatOverviewValue(key: string, value: string): string {
+  const num = parseFloat(value.replace(/[,\s]/g, ""));
+  const isNum = !Number.isNaN(num);
+  if (key === "market_price" && isNum) return `Rs ${num.toLocaleString("en-NP", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  if (key === "pct_change" && isNum) return `${num >= 0 ? "+" : ""}${num}%`;
+  if (["market_capitalization", "shares_outstanding", "30_day_avg_volume"].includes(key) && isNum) return num.toLocaleString("en-NP");
+  if (["p_e_ratio", "pe_ratio", "book_value", "eps", "pbv", "120_day_average", "1_year_yield"].includes(key) && isNum) return num.toLocaleString("en-NP", { maximumFractionDigits: 2 });
+  return value;
+}
 
 const OVERVIEW_ORDER = [
   "market_price",
@@ -80,13 +122,13 @@ function CurrentValuesSection({
     for (const key of OVERVIEW_ORDER) {
       if (overview[key] != null && overview[key] !== "" && !seen.has(key)) {
         seen.add(key);
-        entries.push([key, String(overview[key])]);
+        entries.push([key, formatOverviewValue(key, String(overview[key]))]);
       }
     }
     Object.entries(overview).forEach(([k, v]) => {
       if (v != null && v !== "" && !seen.has(k)) {
         seen.add(k);
-        entries.push([k, String(v)]);
+        entries.push([k, formatOverviewValue(k, String(v))]);
       }
     });
   }
@@ -367,8 +409,12 @@ export function CompanyDetail() {
   }, [symbol]);
 
   useEffect(() => {
-    if (company) document.title = `${company.name} (${company.symbol}) | NEPSE Research`;
-    return () => { document.title = "NEPSE Research | Nepal Stock Analysis"; };
+    if (company) {
+      const title = `${company.name} (${company.symbol}) | NEPSE Stock AI Analysis`;
+      const description = `Free AI analysis of ${company.name} (${company.symbol}) – NEPSE fundamental & technical analysis, valuation, risk. Nepal stock AI analysis.`;
+      setPageMeta(title, description, `/company/${company.symbol}`);
+    }
+    return resetPageMeta;
   }, [company]);
 
   const loadAnalysisById = (analysisId: number) => {
@@ -393,8 +439,7 @@ export function CompanyDetail() {
     );
 
   const risk = analysisToShow && getRiskTier(analysisToShow as Record<string, unknown>);
-  const inv = analysisToShow && getInvestability(analysisToShow as Record<string, unknown>);
-  const timing = analysisToShow && getEntryTiming(analysisToShow as Record<string, unknown>);
+  const rec = analysisToShow && getRecommendation(analysisToShow as Record<string, unknown>);
 
   return (
     <div className="space-y-8">
@@ -409,54 +454,78 @@ export function CompanyDetail() {
       </nav>
 
       <header className="rounded-2xl border border-stone-200/80 bg-white p-6 shadow-sm sm:p-8">
-        <div className="flex flex-wrap items-start gap-3">
-          <span className="inline-flex items-center rounded-lg bg-stone-100 px-3 py-1.5 font-mono text-sm font-semibold text-stone-700">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center rounded-lg bg-stone-100 px-3 py-2 font-mono text-base font-semibold text-stone-800">
             {company.symbol}
           </span>
-          {(risk || inv || timing) && (
-            <div className="flex flex-wrap gap-2">
-              {risk && (
-                <span
-                  className={`rounded-full px-3 py-1 text-xs font-medium ${
-                    risk === "low"
-                      ? "bg-emerald-100 text-emerald-800"
-                      : risk === "high"
-                        ? "bg-red-100 text-red-800"
-                        : "bg-amber-100 text-amber-800"
-                  }`}
-                >
-                  {riskTierLabel[risk as RiskTier]}
-                </span>
-              )}
-              {inv && (
-                <span className="rounded-full bg-teal-100 px-3 py-1 text-xs font-medium text-teal-800">
-                  {investabilityLabel[inv as Investability]}
-                </span>
-              )}
-              {timing && (
-                <span
-                  className={`rounded-full px-3 py-1 text-xs font-medium ${
-                    timing === "now"
-                      ? "bg-emerald-100 text-emerald-800"
-                      : timing === "avoid"
-                        ? "bg-red-100 text-red-800"
-                        : "bg-amber-100 text-amber-800"
-                  }`}
-                >
-                  {entryTimingLabel[timing as EntryTiming]}
-                </span>
-              )}
-            </div>
+          {rec && (
+            <span
+              className={`inline-flex items-center rounded-lg px-3 py-1.5 text-sm font-medium ${
+                rec === "consider"
+                  ? "bg-emerald-100 text-emerald-800"
+                  : rec === "avoid"
+                    ? "bg-red-100 text-red-800"
+                    : "bg-amber-100 text-amber-800"
+              }`}
+            >
+              {recommendationLabel[rec as Recommendation]}
+            </span>
+          )}
+          {risk && (
+            <span
+              className={`inline-flex items-center rounded-lg px-3 py-1.5 text-sm font-medium ${
+                risk === "low"
+                  ? "bg-sky-100 text-sky-800"
+                  : risk === "high"
+                    ? "bg-red-100 text-red-800"
+                    : "bg-amber-100 text-amber-800"
+              }`}
+            >
+              {riskTierLabel[risk as RiskTier]}
+            </span>
           )}
         </div>
-        <h1 className="mt-3 font-display text-2xl font-semibold text-stone-900 sm:text-3xl">
+        <h1 className="mt-4 font-display text-2xl font-semibold text-stone-900 sm:text-3xl">
           {company.name}
         </h1>
+        {company.overview && (company.overview.market_price != null || company.overview.pct_change != null) && (
+          <div className="mt-3 flex flex-wrap items-baseline gap-x-4 gap-y-1 text-sm">
+            {company.overview.market_price != null && company.overview.market_price !== "" && (
+              <span className="font-semibold text-stone-900">
+                {formatOverviewValue("market_price", String(company.overview.market_price))}
+              </span>
+            )}
+            {company.overview.pct_change != null && company.overview.pct_change !== "" && (() => {
+              const pct = parseFloat(String(company.overview.pct_change).replace(/[,\s]/g, ""));
+              const isNeg = !Number.isNaN(pct) && pct < 0;
+              return (
+                <span className={isNeg ? "text-red-600 font-medium" : "text-emerald-600 font-medium"}>
+                  {formatOverviewValue("pct_change", String(company.overview.pct_change))}
+                </span>
+              );
+            })()}
+          </div>
+        )}
         <p className="mt-1 text-sm text-stone-500">
           {company.sector ?? "N/A"}
           <span className="mx-2 text-stone-300">·</span>
-          Updated {new Date(company.updated_at).toLocaleDateString(undefined, { dateStyle: "medium" })}
+          Data as of {new Date(company.updated_at).toLocaleDateString(undefined, { dateStyle: "medium" })}
         </p>
+        {analysisToShow && (() => {
+          const fin = analysisToShow.final_decision as Record<string, unknown> | undefined;
+          const confidence = fin && typeof fin.confidence_score_numeric === "number" ? fin.confidence_score_numeric : null;
+          const summary = fin && typeof fin.summary_verdict === "string" ? fin.summary_verdict : null;
+          return (
+            <>
+              {summary && <p className="mt-2 text-sm text-stone-600 italic">&ldquo;{summary}&rdquo;</p>}
+              {confidence !== null && confidence <= 4 && (
+                <p className="mt-2 text-xs font-medium text-amber-700 bg-amber-50 px-2 py-1 rounded inline-block">
+                  Low confidence in this analysis.
+                </p>
+              )}
+            </>
+          );
+        })()}
         {analyses.length > 0 && (
           <div className="mt-5 flex flex-wrap items-center gap-2">
             <span className="text-sm text-stone-500">Analysis from:</span>
