@@ -104,7 +104,7 @@ export function Dashboard() {
   useEffect(() => {
     const title = "NEPSE Research – NEPSE Stock AI Analysis";
     const description =
-      "Free AI-powered NEPSE stock analysis and screener for the Nepal stock market. View risk, return potential and entry timing. Informational only, not investment advice.";
+      "Free AI-powered NEPSE stock analysis and screener for the Nepal stock market. Informational only, not investment advice.";
     document.title = title;
     const descEl = document.querySelector('meta[name="description"]');
     if (descEl) descEl.setAttribute("content", description);
