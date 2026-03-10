@@ -1,7 +1,9 @@
 import { BrowserRouter, Link, NavLink, Route, Routes } from "react-router-dom";
-import { Dashboard } from "./pages/Dashboard";
-import { CompanyList } from "./pages/CompanyList";
+import { WatchlistProvider } from "./contexts/WatchlistContext";
 import { CompanyDetail } from "./pages/CompanyDetail";
+import { CompanyList } from "./pages/CompanyList";
+import { Compare } from "./pages/Compare";
+import { Dashboard } from "./pages/Dashboard";
 
 function NavItem({ to, end = false, children }: { to: string; end?: boolean; children: React.ReactNode }) {
   return (
@@ -21,6 +23,7 @@ function NavItem({ to, end = false, children }: { to: string; end?: boolean; chi
 
 function App() {
   return (
+    <WatchlistProvider>
     <BrowserRouter>
       <nav className="border-b border-stone-200/80 bg-white text-stone-700 shadow-sm">
         <div className="mx-auto flex max-w-4xl flex-wrap items-center gap-4 px-4 py-3 sm:gap-6">
@@ -29,6 +32,7 @@ function App() {
           </Link>
           <NavItem to="/" end>Dashboard</NavItem>
           <NavItem to="/companies">Screener</NavItem>
+          <NavItem to="/compare">Compare</NavItem>
         </div>
       </nav>
       <main className="mx-auto min-h-[calc(100vh-52px)] max-w-4xl bg-stone-50/30 px-4 py-8">
@@ -36,6 +40,7 @@ function App() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/companies" element={<CompanyList />} />
           <Route path="/company/:symbol" element={<CompanyDetail />} />
+          <Route path="/compare" element={<Compare />} />
         </Routes>
       </main>
       <footer className="border-t border-stone-200/80 bg-white">
@@ -46,6 +51,7 @@ function App() {
         </div>
       </footer>
     </BrowserRouter>
+    </WatchlistProvider>
   );
 }
 

@@ -32,7 +32,7 @@ def get_risk_tier(analysis: dict[str, Any] | None) -> str | None:
     n = _num(analysis, "investment_snapshot", "risk_score_numeric")
     if n is None:
         return None
-    if n <= 3:
+    if n <= 4:
         return "low"
     if n <= 6:
         return "moderate"

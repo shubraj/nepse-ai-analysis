@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api } from "../api/client";
+import { useWatchlist } from "../contexts/WatchlistContext";
 import type {
   Company,
   CompanyAnalysisListItem,
@@ -449,6 +450,8 @@ export function CompanyDetail() {
 
   const risk = analysisToShow && getRiskTier(analysisToShow as Record<string, unknown>);
   const rec = analysisToShow && getRecommendation(analysisToShow as Record<string, unknown>);
+  const { isInWatchlist, toggle: toggleWatchlist } = useWatchlist();
+  const inWatchlist = isInWatchlist(company.symbol);
 
   return (
     <div className="space-y-8">
@@ -463,36 +466,57 @@ export function CompanyDetail() {
       </nav>
 
       <header className="rounded-2xl border border-stone-200/80 bg-white p-6 shadow-sm sm:p-8">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="inline-flex items-center rounded-lg bg-stone-100 px-3 py-2 font-mono text-base font-semibold text-stone-800">
-            {company.symbol}
-          </span>
-          {rec && (
-            <span
-              className={`inline-flex items-center rounded-lg px-3 py-1.5 text-sm font-medium ${
-                rec === "consider"
-                  ? "bg-emerald-100 text-emerald-800"
-                  : rec === "avoid"
-                    ? "bg-red-100 text-red-800"
-                    : "bg-amber-100 text-amber-800"
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center rounded-lg bg-stone-100 px-3 py-2 font-mono text-base font-semibold text-stone-800">
+              {company.symbol}
+            </span>
+            {rec && (
+              <span
+                className={`inline-flex items-center rounded-lg px-3 py-1.5 text-sm font-medium ${
+                  rec === "consider"
+                    ? "bg-emerald-100 text-emerald-800"
+                    : rec === "avoid"
+                      ? "bg-red-100 text-red-800"
+                      : "bg-amber-100 text-amber-800"
+                }`}
+              >
+                {recommendationLabel[rec as Recommendation]}
+              </span>
+            )}
+            {risk && (
+              <span
+                className={`inline-flex items-center rounded-lg px-3 py-1.5 text-sm font-medium ${
+                  risk === "low"
+                    ? "bg-sky-100 text-sky-800"
+                    : risk === "high"
+                      ? "bg-red-100 text-red-800"
+                      : "bg-amber-100 text-amber-800"
+                }`}
+              >
+                {riskTierLabel[risk as RiskTier]}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => toggleWatchlist(company.symbol)}
+              className={`inline-flex items-center rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+                inWatchlist
+                  ? "bg-teal-100 text-teal-800 hover:bg-teal-200"
+                  : "bg-stone-100 text-stone-600 hover:bg-stone-200 hover:text-stone-800"
               }`}
             >
-              {recommendationLabel[rec as Recommendation]}
-            </span>
-          )}
-          {risk && (
-            <span
-              className={`inline-flex items-center rounded-lg px-3 py-1.5 text-sm font-medium ${
-                risk === "low"
-                  ? "bg-sky-100 text-sky-800"
-                  : risk === "high"
-                    ? "bg-red-100 text-red-800"
-                    : "bg-amber-100 text-amber-800"
-              }`}
+              {inWatchlist ? "In watchlist ✓" : "Add to watchlist"}
+            </button>
+            <Link
+              to={`/compare?symbols=${encodeURIComponent(company.symbol)}`}
+              className="inline-flex items-center rounded-lg bg-stone-100 px-3 py-1.5 text-sm font-medium text-stone-600 hover:bg-stone-200 hover:text-stone-800"
             >
-              {riskTierLabel[risk as RiskTier]}
-            </span>
-          )}
+              Compare
+            </Link>
+          </div>
         </div>
         <h1 className="mt-4 font-display text-2xl font-semibold text-stone-900 sm:text-3xl">
           {company.name}

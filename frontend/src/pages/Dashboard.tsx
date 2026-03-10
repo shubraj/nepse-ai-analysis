@@ -1,7 +1,13 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api/client";
-import type { Company, SuggestionItem } from "../types/company";
+import { useWatchlist } from "../contexts/WatchlistContext";
+import type {
+  Company,
+  MarketSentimentResponse,
+  SectorPerformanceItem,
+  SuggestionItem,
+} from "../types/company";
 import {
   getRiskTier,
   getRecommendation,
@@ -79,6 +85,11 @@ export function Dashboard() {
   const [highRisk, setHighRisk] = useState<Company[]>([]);
   const [timeToInvest, setTimeToInvest] = useState<Company[]>([]);
   const [waitForEntry, setWaitForEntry] = useState<Company[]>([]);
+  const [marketSentiment, setMarketSentiment] = useState<MarketSentimentResponse | null>(null);
+  const [sectorPerformance, setSectorPerformance] = useState<SectorPerformanceItem[]>([]);
+  const [watchlistCompanies, setWatchlistCompanies] = useState<Company[]>([]);
+  const [watchlistLoading, setWatchlistLoading] = useState(false);
+  const { symbols: watchlistSymbols, toggle: toggleWatchlist } = useWatchlist();
   const [loading, setLoading] = useState(true);
 
   const [suggestAmount, setSuggestAmount] = useState("");
@@ -89,18 +100,45 @@ export function Dashboard() {
   const [suggestLoading, setSuggestLoading] = useState(false);
   const [suggestError, setSuggestError] = useState<string | null>(null);
 
+  // SEO: home page meta
+  useEffect(() => {
+    const title = "NEPSE Research – Free NEPSE Stock AI Analysis & Screener";
+    const description =
+      "AI-powered NEPSE stock analysis, screener, risk and return insights, and entry timing for the Nepal stock market. Informational only, not investment advice.";
+    document.title = title;
+    const descEl = document.querySelector('meta[name="description"]');
+    if (descEl) descEl.setAttribute("content", description);
+    const ogTitle = document.querySelector('meta[property="og:title"]');
+    if (ogTitle) ogTitle.setAttribute("content", title);
+    const ogDesc = document.querySelector('meta[property="og:description"]');
+    if (ogDesc) ogDesc.setAttribute("content", description);
+    const twTitle = document.querySelector('meta[name="twitter:title"]');
+    if (twTitle) twTitle.setAttribute("content", title);
+    const twDesc = document.querySelector('meta[name="twitter:description"]');
+    if (twDesc) twDesc.setAttribute("content", description);
+    const canonical = document.querySelector('link[rel="canonical"]');
+    const url = `${window.location.origin}/`;
+    if (canonical) canonical.setAttribute("href", url);
+    const ogUrl = document.querySelector('meta[property="og:url"]');
+    if (ogUrl) ogUrl.setAttribute("content", url);
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     Promise.all([
+      api.getMarketSentiment().catch(() => null),
+      api.getSectorPerformance().catch(() => ({ sectors: [] as SectorPerformanceItem[] })),
       api.listCompanies({ limit: 10, investability: "high" }),
       api.listCompanies({ limit: 10, risk_tier: "low" }),
       api.listCompanies({ limit: 10, risk_tier: "high" }),
       api.listCompanies({ limit: 10, entry_timing: "now" }),
       api.listCompanies({ limit: 10, entry_timing: "wait" }),
     ])
-      .then(([a, b, c, d, e]) => {
+      .then(([sentiment, sectorResp, a, b, c, d, e]) => {
         if (!cancelled) {
+          if (sentiment) setMarketSentiment(sentiment);
+          setSectorPerformance(sectorResp?.sectors ?? []);
           setMostInvestable(a);
           setLowRisk(b);
           setHighRisk(c);
@@ -116,6 +154,17 @@ export function Dashboard() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (watchlistSymbols.length === 0) {
+      setWatchlistCompanies([]);
+      return;
+    }
+    setWatchlistLoading(true);
+    Promise.all(watchlistSymbols.map((s) => api.getCompany(s).catch(() => null)))
+      .then((list) => setWatchlistCompanies(list.filter((c): c is Company => c != null)))
+      .finally(() => setWatchlistLoading(false));
+  }, [watchlistSymbols]);
 
   const handleGetSuggestions = (e: React.FormEvent) => {
     e.preventDefault();
@@ -164,6 +213,157 @@ export function Dashboard() {
           Browse all companies
         </Link>
       </header>
+
+      {marketSentiment && (
+        <section className="rounded-2xl border border-stone-200/80 bg-white p-6 shadow-sm">
+          <h2 className="font-display text-lg font-semibold text-stone-900">Market sentiment</h2>
+          <p className="mt-1 text-sm text-stone-500">
+            Based on recent trend across analyzed stocks - not recommendations.
+          </p>
+          <div
+            className={`mt-4 rounded-xl border p-5 ${
+              marketSentiment.sentiment === "bullish"
+                ? "border-emerald-200 bg-emerald-50/80"
+                : marketSentiment.sentiment === "bearish"
+                  ? "border-red-200 bg-red-50/80"
+                  : marketSentiment.sentiment === "cautious"
+                    ? "border-amber-200 bg-amber-50/80"
+                    : marketSentiment.sentiment === "cautiously_optimistic"
+                      ? "border-teal-200 bg-teal-50/80"
+                      : "border-stone-200 bg-stone-50/80"
+            }`}
+          >
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-1">
+                <span
+                  className={`inline-flex w-fit items-center rounded-xl px-4 py-2 text-lg font-semibold ${
+                    marketSentiment.sentiment === "bullish"
+                      ? "bg-emerald-100 text-emerald-800"
+                      : marketSentiment.sentiment === "bearish"
+                        ? "bg-red-100 text-red-800"
+                        : marketSentiment.sentiment === "cautious"
+                          ? "bg-amber-100 text-amber-800"
+                          : marketSentiment.sentiment === "cautiously_optimistic"
+                            ? "bg-teal-100 text-teal-800"
+                            : "bg-stone-100 text-stone-800"
+                  }`}
+                >
+                  {marketSentiment.label}
+                </span>
+                {marketSentiment.stats.stocks_with_data > 0 ? (
+                  <>
+                    {marketSentiment.stats.avg_pct_change != null && (
+                      <span className={marketSentiment.stats.avg_pct_change >= 0 ? "font-semibold text-emerald-600" : "font-semibold text-red-600"}>
+                        {marketSentiment.stats.avg_pct_change >= 0 ? "+" : ""}{marketSentiment.stats.avg_pct_change}% avg
+                      </span>
+                    )}
+                    <span className="text-stone-600">{marketSentiment.stats.stocks_up} up</span>
+                    <span className="text-stone-600">{marketSentiment.stats.stocks_down} down</span>
+                    <span className="text-stone-500">· {marketSentiment.stats.stocks_with_data} stocks</span>
+                  </>
+                ) : (
+                  <p className="text-sm text-stone-600">{marketSentiment.summary}</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {sectorPerformance.length > 0 && (
+        <section className="rounded-2xl border border-stone-200/80 bg-white p-6 shadow-sm">
+          <h2 className="font-display text-lg font-semibold text-stone-900">Sector performance</h2>
+          <p className="mt-1 text-sm text-stone-500">Average price change by sector (recent trend).</p>
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full min-w-[320px] text-sm">
+              <thead>
+                <tr className="border-b border-stone-200 text-left text-stone-500">
+                  <th className="pb-2 pr-4 font-medium">Sector</th>
+                  <th className="pb-2 pr-4 font-medium text-right">Avg %</th>
+                  <th className="pb-2 pr-4 font-medium text-right">Up</th>
+                  <th className="pb-2 pr-4 font-medium text-right">Down</th>
+                  <th className="pb-2 font-medium text-right">Stocks</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sectorPerformance.slice(0, 12).map((row) => (
+                  <tr key={row.sector} className="border-b border-stone-100">
+                    <td className="py-2.5 pr-4 font-medium text-stone-800">{row.sector}</td>
+                    <td className={`py-2.5 pr-4 text-right font-medium ${row.avg_pct_change >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                      {row.avg_pct_change >= 0 ? "+" : ""}{row.avg_pct_change}%
+                    </td>
+                    <td className="py-2.5 pr-4 text-right text-stone-600">{row.stocks_up}</td>
+                    <td className="py-2.5 pr-4 text-right text-stone-600">{row.stocks_down}</td>
+                    <td className="py-2.5 text-right text-stone-500">{row.count}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <Link to="/companies" className="mt-3 inline-block text-sm font-medium text-teal-600 hover:text-teal-700">
+            View all companies →
+          </Link>
+        </section>
+      )}
+
+      {watchlistSymbols.length > 0 && (
+        <section className="rounded-2xl border border-stone-200/80 bg-white p-6 shadow-sm">
+          <h2 className="font-display text-lg font-semibold text-stone-900">Your watchlist</h2>
+          <p className="mt-1 text-sm text-stone-500">Stocks you saved. Remove from watchlist on the company page.</p>
+          {watchlistLoading ? (
+            <p className="mt-4 text-sm text-stone-500">Loading…</p>
+          ) : (
+            <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {watchlistCompanies.map((c) => {
+                const risk = getRiskTier(c.analysis as Record<string, unknown>);
+                const rec = getRecommendation(c.analysis as Record<string, unknown>);
+                return (
+                  <div
+                    key={c.id}
+                    className="flex flex-col rounded-xl border border-stone-200/80 bg-stone-50/50 p-4"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <Link to={`/company/${c.symbol}`} className="min-w-0 flex-1">
+                        <div className="font-mono text-sm font-semibold text-teal-600">{c.symbol}</div>
+                        <div className="mt-0.5 text-sm font-medium text-stone-800 line-clamp-2">{c.name}</div>
+                        <div className="mt-1 text-xs text-stone-500">{c.sector ?? "N/A"}</div>
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => toggleWatchlist(c.symbol)}
+                        className="shrink-0 rounded-lg px-2 py-1 text-xs font-medium text-stone-500 hover:bg-stone-200 hover:text-stone-800"
+                        aria-label="Remove from watchlist"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {rec && (
+                        <span
+                          className={`inline-flex rounded-lg px-2 py-0.5 text-xs font-medium ${
+                            rec === "consider" ? "bg-emerald-100 text-emerald-800" : rec === "avoid" ? "bg-red-100 text-red-800" : "bg-amber-100 text-amber-800"
+                          }`}
+                        >
+                          {recommendationLabel[rec as Recommendation]}
+                        </span>
+                      )}
+                      {risk && (
+                        <span
+                          className={`inline-flex rounded-lg px-2 py-0.5 text-xs font-medium ${
+                            risk === "low" ? "bg-sky-100 text-sky-800" : risk === "high" ? "bg-red-100 text-red-800" : "bg-amber-100 text-amber-800"
+                          }`}
+                        >
+                          {riskTierLabel[risk as RiskTier]}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      )}
 
       {SHOW_INVESTMENT_SUGGESTION && (
         <section className="rounded-2xl border border-stone-200/80 bg-white p-6 shadow-sm">

@@ -28,7 +28,7 @@ export function getRiskTier(analysis: Record<string, unknown> | null | undefined
   }
   const n = num(analysis as Record<string, unknown>, "investment_snapshot", "risk_score_numeric");
   if (n == null) return null;
-  if (n <= 3) return "low";
+  if (n <= 4) return "low";
   if (n <= 6) return "moderate";
   return "high";
 }

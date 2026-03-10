@@ -25,6 +25,29 @@ export function CompanyList() {
 
   const [sectors, setSectors] = useState<string[]>([]);
 
+  // SEO: screener page meta
+  useEffect(() => {
+    const title = "NEPSE Stock Screener – Filter Nepal Stocks by Risk & Recommendation | NEPSE Research";
+    const description =
+      "Filter NEPSE stocks by risk, recommendation, sector, and entry timing. AI-based analysis on historical data to help you screen Nepal stock market opportunities.";
+    document.title = title;
+    const descEl = document.querySelector('meta[name="description"]');
+    if (descEl) descEl.setAttribute("content", description);
+    const ogTitle = document.querySelector('meta[property="og:title"]');
+    if (ogTitle) ogTitle.setAttribute("content", title);
+    const ogDesc = document.querySelector('meta[property="og:description"]');
+    if (ogDesc) ogDesc.setAttribute("content", description);
+    const twTitle = document.querySelector('meta[name="twitter:title"]');
+    if (twTitle) twTitle.setAttribute("content", title);
+    const twDesc = document.querySelector('meta[name="twitter:description"]');
+    if (twDesc) twDesc.setAttribute("content", description);
+    const canonical = document.querySelector('link[rel="canonical"]');
+    const url = `${window.location.origin}/companies`;
+    if (canonical) canonical.setAttribute("href", url);
+    const ogUrl = document.querySelector('meta[property="og:url"]');
+    if (ogUrl) ogUrl.setAttribute("content", url);
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     api.listSectors().then((data) => { if (!cancelled) setSectors(data); }).catch(() => {});

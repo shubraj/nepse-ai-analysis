@@ -112,7 +112,7 @@ _EXTRACTION_PROMPT = """You are a senior financial analyst for the Nepal stock m
 12. **Final decision**
     - invest_now: Text. invest_score_numeric: 0 (no), 0.5 (partial), 1 (yes).
     - wait_option: Text. confidence_level: Text. confidence_score_numeric: integer 1–10 (10 = highest confidence).
-    - risk_tier: MUST match risk_score_numeric exactly: 1–3 → "Low", 4–6 → "Moderate", 7–10 → "High".
+    - risk_tier: MUST match risk_score_numeric exactly: 1–4 → "Low", 5–6 → "Moderate", 7–10 → "High".
     - investability_label: MUST match quality and confidence: avg(investment_quality_score_numeric, confidence_score_numeric) >= 7 → "High", >= 4 → "Moderate", else "Low".
     - entry_timing: MUST match invest_score_numeric: >= 0.5 → "Now", > 0 and < 0.5 → "Wait", 0 → "Avoid".
     - recommendation: Exactly one of "Consider", "Watch", "Avoid" (Consider = entry_timing Now, Watch = Wait, Avoid = Avoid). Single combined verdict for display.

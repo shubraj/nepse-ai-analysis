@@ -1,4 +1,4 @@
-"""Screening thresholds: risk 1-3 low, 4-6 moderate, 7-10 high; investability from quality/confidence avg; entry_timing from invest_score."""
+"""Screening thresholds: risk 1-4 low, 5-6 moderate, 7-10 high; investability from quality/confidence avg; entry_timing from invest_score."""
 
 from typing import Any
 
@@ -25,7 +25,7 @@ def _num(analysis: dict[str, Any] | None, *path: str) -> float | None:
 def risk_tier_from_score(risk_score: float | None) -> str | None:
     if risk_score is None:
         return None
-    if risk_score <= 3:
+    if risk_score <= 4:
         return "low"
     if risk_score <= 6:
         return "moderate"

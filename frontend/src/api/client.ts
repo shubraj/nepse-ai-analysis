@@ -69,4 +69,8 @@ export const api = {
     if (params.max_stocks != null) sp.set("max_stocks", String(params.max_stocks));
     return request<import("../types/company").SuggestionsResponse>(`/suggestions?${sp.toString()}`);
   },
+  getMarketSentiment: () =>
+    request<import("../types/company").MarketSentimentResponse>("/market-sentiment"),
+  getSectorPerformance: () =>
+    request<import("../types/company").SectorPerformanceResponse>("/sector-performance"),
 };

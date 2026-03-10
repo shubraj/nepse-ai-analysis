@@ -38,3 +38,29 @@ export interface SuggestionsResponse {
   suggestions: SuggestionItem[];
   expected_overall_return_pct?: number | null;
 }
+
+export interface MarketSentimentStats {
+  stocks_with_data: number;
+  avg_pct_change: number | null;
+  stocks_up: number;
+  stocks_down: number;
+}
+
+export interface MarketSentimentResponse {
+  sentiment: string;
+  label: string;
+  summary: string;
+  stats: MarketSentimentStats;
+}
+
+export interface SectorPerformanceItem {
+  sector: string;
+  avg_pct_change: number;
+  stocks_up: number;
+  stocks_down: number;
+  count: number;
+}
+
+export interface SectorPerformanceResponse {
+  sectors: SectorPerformanceItem[];
+}

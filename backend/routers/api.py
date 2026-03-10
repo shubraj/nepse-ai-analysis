@@ -15,10 +15,16 @@ from models.company import Company
 from models.company_analysis import CompanyAnalysis
 from schemas.company import CompanyResponse
 from schemas.company_analysis import CompanyAnalysisListItem, CompanyAnalysisResponse
+from schemas.market_sentiment import MarketSentimentResponse
+from schemas.sector_performance import SectorPerformanceItem, SectorPerformanceResponse
 from schemas.suggestions import SuggestionItem, SuggestionsResponse
+from services.market_sentiment import get_market_sentiment
+from services.sector_performance import get_sector_performance
 from services.suggestions import get_suggestions as get_suggestions_service
 
 router = APIRouter()
+
+MARKET_SENTIMENT_CACHE_TTL = 300  # 5 min
 
 
 def _escape_loc(loc: str) -> str:
@@ -40,6 +46,30 @@ def _sitemap_xml(symbols: list[str]) -> str:
         lines.append(f"  <url><loc>{_escape_loc(loc)}</loc><changefreq>daily</changefreq><priority>0.8</priority></url>")
     lines.append("</urlset>")
     return "\n".join(lines)
+
+
+@router.get("/sector-performance", response_model=SectorPerformanceResponse)
+def get_sector_performance_endpoint(db: Session = Depends(get_db)):
+    """Avg price change and up/down counts per sector."""
+    cache_key = f"{CACHE_KEY_PREFIX}sector-performance"
+    cached = cache_get(cache_key)
+    if cached is not None:
+        return SectorPerformanceResponse(**cached)
+    data = get_sector_performance(db)
+    cache_set(cache_key, {"sectors": data}, ttl=MARKET_SENTIMENT_CACHE_TTL)
+    return SectorPerformanceResponse(sectors=[SectorPerformanceItem(**s) for s in data])
+
+
+@router.get("/market-sentiment", response_model=MarketSentimentResponse)
+def get_market_sentiment_endpoint(db: Session = Depends(get_db)):
+    """Overall market sentiment from recent price trend (pct_change)."""
+    cache_key = f"{CACHE_KEY_PREFIX}market-sentiment"
+    cached = cache_get(cache_key)
+    if cached is not None:
+        return MarketSentimentResponse(**cached)
+    data = get_market_sentiment(db)
+    cache_set(cache_key, data, ttl=MARKET_SENTIMENT_CACHE_TTL)
+    return MarketSentimentResponse(**data)
 
 
 @router.get("/sitemap.xml")
