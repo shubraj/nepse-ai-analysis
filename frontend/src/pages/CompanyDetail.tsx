@@ -15,8 +15,9 @@ import {
 } from "../lib/screening";
 import type { RiskTier, Recommendation } from "../lib/screening";
 
-const DEFAULT_DOC_TITLE = "NEPSE Research | Free Nepal Stock AI Analysis & NEPSE Fundamental Analysis Tool";
-const DEFAULT_META_DESCRIPTION = "Free NEPSE stock AI analysis and Nepal stock market insights. AI-powered fundamental & technical analysis, screener, valuations for NEPSE. Informational only, not investment advice.";
+const DEFAULT_DOC_TITLE = "NEPSE Research – NEPSE Stock AI Analysis";
+const DEFAULT_META_DESCRIPTION =
+  "Free AI-powered NEPSE stock analysis and screener for the Nepal stock market. Informational only, not investment advice.";
 
 function setPageMeta(title: string, description: string, path?: string) {
   document.title = title;
