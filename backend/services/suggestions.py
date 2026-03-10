@@ -30,6 +30,24 @@ def _num(analysis: dict[str, Any] | None, *path: str) -> float | None:
         return None
 
 
+def _return_potential_numeric(analysis: dict[str, Any] | None) -> float:
+    """Return potential 1-10 from investment_snapshot. 0 if missing."""
+    if not analysis:
+        return 0.0
+    v = _num(analysis, "investment_snapshot", "return_potential_numeric")
+    return float(v) if v is not None else 0.0
+
+
+def _growth_potential_label(analysis: dict[str, Any] | None) -> str:
+    """Human-readable growth potential: High (7-10), Moderate (4-6), Low (1-3)."""
+    n = _return_potential_numeric(analysis)
+    if n >= 7:
+        return "High"
+    if n >= 4:
+        return "Moderate"
+    return "Low" if n >= 1 else ""
+
+
 def _goal_score(analysis: dict[str, Any] | None, goal: str) -> float:
     """Higher = better for this goal. 0 if no data."""
     if not analysis:
@@ -205,6 +223,7 @@ def _get_suggestions_rule_based(
             "risk_tier": risk,
             "outlook_label": outlook,
             "expected_return_pct": round(ret_pct, 1) if ret_pct is not None else None,
+            "growth_potential": _growth_potential_label(c.analysis),
         })
     return result
 
@@ -220,9 +239,11 @@ def get_suggestions(db: Session, amount_npr: int, goal: str, max_stocks: int = 8
         timing = get_entry_timing(c.analysis)
         if timing == "avoid" or not timing:
             continue
-        score = _goal_score(c.analysis, goal)
+        goal_s = _goal_score(c.analysis, goal)
+        growth_s = _return_potential_numeric(c.analysis)
+        combined = goal_s + 0.4 * growth_s
         outlook = _outlook_label(c.analysis, goal)
-        scored.append((c, score, outlook))
+        scored.append((c, combined, outlook))
 
     scored.sort(key=lambda x: (-x[1], x[0].symbol))
     top_candidates = scored[: 25]
@@ -249,6 +270,7 @@ def get_suggestions(db: Session, amount_npr: int, goal: str, max_stocks: int = 8
                 "risk_tier": risk,
                 "outlook_text": _outlook_text_for_llm(c.analysis, goal),
                 "market_price": price,
+                "growth_potential": _growth_potential_label(c.analysis),
             })
         try:
             ai_suggestions = suggest_allocation_llm(amount_npr, goal, candidates_for_llm)
@@ -275,6 +297,7 @@ def get_suggestions(db: Session, amount_npr: int, goal: str, max_stocks: int = 8
                     "risk_tier": risk,
                     "outlook_label": (s.get("outlook_label") or "").strip() or _outlook_label(c.analysis, goal),
                     "expected_return_pct": round(ret_pct, 1) if ret_pct is not None else None,
+                    "growth_potential": _growth_potential_label(c.analysis),
                 })
             if result:
                 if len(result) > max_stocks:

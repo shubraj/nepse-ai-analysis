@@ -13,6 +13,7 @@ class SuggestionItem(BaseModel):
     risk_tier: str
     outlook_label: str
     expected_return_pct: float | None = None
+    growth_potential: str | None = None
 
 
 class SuggestionsResponse(BaseModel):

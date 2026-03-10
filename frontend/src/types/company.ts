@@ -31,6 +31,7 @@ export interface SuggestionItem {
   risk_tier: string;
   outlook_label: string;
   expected_return_pct?: number | null;
+  growth_potential?: string | null;
 }
 
 export interface SuggestionsResponse {

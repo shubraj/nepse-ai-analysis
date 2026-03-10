@@ -39,7 +39,7 @@ GOAL_LABELS = {
 
 
 def _build_company_summaries(candidates: list[dict[str, Any]], goal: str) -> str:
-    """Build a compact text summary of each company for the chosen goal. Include market_price (NPR per share) for whole-share constraint."""
+    """Build a compact text summary of each company for the chosen goal. Include market_price (NPR per share) and growth potential."""
     lines = []
     for c in candidates:
         symbol = c.get("symbol", "")
@@ -47,10 +47,11 @@ def _build_company_summaries(candidates: list[dict[str, Any]], goal: str) -> str
         sector = c.get("sector", "")
         recommendation = c.get("recommendation", "")
         risk_tier = c.get("risk_tier", "")
+        growth = (c.get("growth_potential") or "").strip() or "N/A"
         outlook = (c.get("outlook_text") or "").strip() or "No outlook summary."
         price = c.get("market_price")
         price_str = f" | Market price: NPR {price:.0f} per share" if price is not None and price > 0 else ""
-        lines.append(f"- {symbol} | {name} | Sector: {sector} | Recommendation: {recommendation} | Risk: {risk_tier}{price_str}\n  Outlook: {outlook}")
+        lines.append(f"- {symbol} | {name} | Sector: {sector} | Recommendation: {recommendation} | Risk: {risk_tier} | Growth potential: {growth}{price_str}\n  Outlook: {outlook}")
     return "\n\n".join(lines)
 
 
@@ -96,7 +97,7 @@ The following companies have been pre-screened as Consider or Watch (not Avoid).
 {company_summaries}
 
 ## Your task
-1. Select between 1 and 6 stocks from the list above that best fit the user's goal ({goal_label}) and amount.
+1. Select between 1 and 6 stocks from the list above that best fit the user's goal ({goal_label}) and amount. Prefer higher growth potential (Growth potential: High > Moderate > Low) when it fits the goal and risk.
 2. For each stock, suggested_amount_npr MUST be (whole shares × market price). Only multiples of market_price; no fractional shares.
 3. Get as close as possible to total NPR {amount_npr:,} while respecting whole-share amounts (total may be slightly under).
 4. allocation_pct is the percentage of the total suggested amount for that stock (e.g. 25.0 for 25%).

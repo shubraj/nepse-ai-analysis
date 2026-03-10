@@ -418,8 +418,9 @@ export function CompanyDetail() {
 
   useEffect(() => {
     if (company) {
-      const title = `${company.name} (${company.symbol}) | NEPSE Stock AI Analysis`;
-      const description = `Free AI analysis of ${company.name} (${company.symbol}) – NEPSE fundamental & technical analysis, valuation, risk. Nepal stock AI analysis.`;
+      const fullName = company.name || company.symbol;
+      const title = `${fullName} (${company.symbol}) | NEPSE Stock AI Analysis`;
+      const description = `${fullName} (${company.symbol}) – Free AI analysis, NEPSE fundamental & technical analysis, valuation and risk. Nepal stock AI analysis.`;
       setPageMeta(title, description, `/company/${company.symbol}`);
     }
     return resetPageMeta;
