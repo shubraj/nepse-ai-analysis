@@ -502,7 +502,7 @@ export function Dashboard() {
       )}
 
       <section>
-        <h2 className="font-display text-lg font-semibold text-stone-900">Consider now</h2>
+        <h2 className="font-display text-lg font-semibold text-stone-900">High conviction</h2>
         <p className="text-sm text-stone-500">High quality and conviction. Suitable for core allocation.</p>
         <CompanyCardRow companies={mostInvestable} loading={loading} />
         {mostInvestable.length > 0 && (
@@ -535,7 +535,7 @@ export function Dashboard() {
       </section>
 
       <section>
-        <h2 className="font-display text-lg font-semibold text-stone-900">Consider now</h2>
+        <h2 className="font-display text-lg font-semibold text-stone-900">Time to invest</h2>
         <p className="text-sm text-stone-500">Favorable entry timing. Consider accumulation.</p>
         <CompanyCardRow companies={timeToInvest} loading={loading} />
         {timeToInvest.length > 0 && (
@@ -546,8 +546,8 @@ export function Dashboard() {
       </section>
 
       <section>
-        <h2 className="font-display text-lg font-semibold text-stone-900">Watch list</h2>
-        <p className="text-sm text-stone-500">Wait for better entry or more clarity.</p>
+        <h2 className="font-display text-lg font-semibold text-stone-900">Wait for entry</h2>
+        <p className="text-sm text-stone-500">Wait for better entry or more clarity before buying.</p>
         <CompanyCardRow companies={waitForEntry} loading={loading} />
         {waitForEntry.length > 0 && (
           <Link to="/companies?entry_timing=wait" className="mt-2 inline-block text-sm font-medium text-teal-600 hover:text-teal-700">
