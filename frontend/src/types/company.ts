@@ -19,6 +19,8 @@ export interface CompanyAnalysisResponse {
   company_id: number;
   analyzed_at: string;
   analysis: Record<string, unknown>;
+  sector: string | null;
+  overview: Record<string, string | number> | null;
 }
 
 export interface SuggestionItem {
@@ -51,6 +53,18 @@ export interface MarketSentimentResponse {
   label: string;
   summary: string;
   stats: MarketSentimentStats;
+}
+
+export interface MarketPredictionResponse {
+  id: number;
+  predicted_at: string;
+  prediction_for: string;
+  sentiment: string;
+  direction: string;
+  confidence: number;
+  predicted_change_pct: string;
+  key_factors: string[];
+  summary: string;
 }
 
 export interface SectorPerformanceItem {

@@ -64,66 +64,25 @@ if not logger.handlers:
     logger.addHandler(fh)
     logger.addHandler(sh)
 
-_EXTRACTION_PROMPT = """You are a senior financial analyst for the Nepal stock market (NEPSE). Your task is to produce a structured JSON analysis that supports AI-driven prediction and recommendation. Use ONLY the provided financial context; do not invent numbers.
+_EXTRACTION_PROMPT = """NEPSE financial analyst. Output strict JSON analysis.
 
-## Instructions
+Required fields:
+- ticker_symbol, company_name, sector, market_position
+- investment_snapshot: investment_quality_score(text), investment_quality_score_numeric(1-10), risk_level(text), risk_score_numeric(1-10), return_potential(text), return_potential_numeric(1-10), suitability(text)
+- valuation_analysis: valuation_status(Undervalued/Fairly/Overvalued), valuation_score_numeric(-1/0/1), pe_interpretation, pb_interpretation, value_or_growth_style
+- short_term_outlook_0_to_12_months: growth_probability(text), growth_probability_numeric(1-5), expected_price_range_change, expected_return_low_pct, expected_return_high_pct, key_triggers[], strategy
+- mid_term_outlook_1_to_3_years: growth_probability_numeric(1-5), expected_annual_return(text), expected_annual_return_min_pct, expected_annual_return_max_pct, key_drivers[], strategy
+- long_term_outlook_3_to_5_years: growth_probability_numeric(1-5), expected_annual_return_best_case(text), expected_annual_return_best_case_min_pct, expected_annual_return_best_case_max_pct, investment_theme, long_term_risk, long_term_risk_score_numeric(1-10)
+- dividend_profile: dividend_consistency(text), dividend_consistency_score_numeric(1-10), income_reliability(text), income_reliability_score_numeric(1-10), suitable_for_income_investors(boolean)
+- financial_strength_monitoring: eps_trend, capital_strength, asset_quality, liquidity_position
+- risk_analysis: primary_risks[3-5], volatility_level(text), volatility_score_numeric(1-10)
+- portfolio_strategy_recommendation: allocation_size(text), allocation_max_pct_numeric, holding_period(text), holding_period_years_numeric, buy_strategy
+- who_should_invest[2-4], who_should_avoid[2-4]
+- final_decision: invest_now(text), invest_score_numeric(0/0.5/1), wait_option(text), confidence_level(text), confidence_score_numeric(1-10), risk_tier(Low/Moderate/High), investability_label(High/Moderate/Low), entry_timing(Now/Wait/Avoid), recommendation(Consider/Watch/Avoid), summary_verdict
 
-1. **Identity**: Set ticker_symbol, company_name, and sector exactly from the context. Infer market_position from sector and size (e.g. "Top-tier commercial bank", "Mid-tier development bank", "Hydro power producer").
+Rules: risk_tier=1-4:Low,5-6:Moderate,7-10:High. investability=avg(quality,confidence)>=7:High,>=4:Moderate. entry_timing>=0.5:Now,>0:Wait,0:Avoid. recommendation=Consider if Now,Watch if Wait,Avoid if Avoid.
 
-2. **Investment snapshot**
-   - investment_quality_score: Text score 1–10 (e.g. "6/10"). investment_quality_score_numeric: integer 1–10.
-   - risk_level: Text. risk_score_numeric: integer 1–10 (10 = highest risk).
-   - return_potential: Text. return_potential_numeric: integer 1–10 (10 = highest return potential).
-   - suitability: One clear sentence.
-
-3. **Valuation analysis**
-   - valuation_status: Undervalued / Fairly Valued / Overvalued. valuation_score_numeric: -1 (undervalued), 0 (fair), 1 (overvalued).
-   - pe_interpretation, pb_interpretation: Short sentences. value_or_growth_style: Value / Growth / Blend / Recovery Play.
-
-4. **Short-term outlook (0–12 months)**
-   - growth_probability: Text. growth_probability_numeric: integer 1–5 (1=Low, 5=High).
-   - expected_price_range_change: Text (e.g. "-10% to +12%"). expected_return_low_pct and expected_return_high_pct: numbers (e.g. -10, 12).
-   - key_triggers, strategy: As before.
-
-5. **Mid-term outlook (1–3 years)**
-   - growth_probability_numeric: 1–5. expected_annual_return: Text. expected_annual_return_min_pct, expected_annual_return_max_pct: numbers (e.g. 6, 12).
-   - key_drivers, strategy: As before.
-
-6. **Long-term outlook (3–5 years)**
-   - growth_probability_numeric: 1–5. expected_annual_return_best_case: Text. expected_annual_return_best_case_min_pct, expected_annual_return_best_case_max_pct: numbers.
-   - investment_theme, long_term_risk: Text. long_term_risk_score_numeric: integer 1–10 (10 = highest risk).
-
-7. **Dividend profile**
-   - dividend_consistency, income_reliability: Text. dividend_consistency_score_numeric, income_reliability_score_numeric: integers 1–10 (10 = best).
-   - suitable_for_income_investors: boolean.
-
-8. **Financial strength monitoring**
-   - eps_trend, capital_strength, asset_quality, liquidity_position: One short phrase each, sector-appropriate (e.g. banks: NPL, capital; hydro: capacity, tariff).
-
-9. **Risk analysis**
-   - primary_risks: 3–5 specific risks. volatility_level: Text. volatility_score_numeric: integer 1–10 (10 = highest volatility).
-
-10. **Portfolio strategy recommendation**
-    - allocation_size, holding_period, buy_strategy: Text. allocation_max_pct_numeric: number (e.g. 10 for 10%). holding_period_years_numeric: number (e.g. 2.5 for 2–3 years).
-
-11. **Who should invest / who should avoid**
-    - 2–4 investor types each.
-
-12. **Final decision**
-    - invest_now: Text. invest_score_numeric: 0 (no), 0.5 (partial), 1 (yes).
-    - wait_option: Text. confidence_level: Text. confidence_score_numeric: integer 1–10 (10 = highest confidence).
-    - risk_tier: MUST match risk_score_numeric exactly: 1–4 → "Low", 5–6 → "Moderate", 7–10 → "High".
-    - investability_label: MUST match quality and confidence: avg(investment_quality_score_numeric, confidence_score_numeric) >= 7 → "High", >= 4 → "Moderate", else "Low".
-    - entry_timing: MUST match invest_score_numeric: >= 0.5 → "Now", > 0 and < 0.5 → "Wait", 0 → "Avoid".
-    - recommendation: Exactly one of "Consider", "Watch", "Avoid" (Consider = entry_timing Now, Watch = Wait, Avoid = Avoid). Single combined verdict for display.
-    - summary_verdict: One short sentence in plain language (e.g. "Consider for long-term; moderate risk." or "Watch for better entry; higher risk.").
-
-Return valid JSON only, matching the exact schema (all keys and nested structure). No markdown or extra text.
-
-## Financial context
-
-{financial_context}
-"""
+Context: {financial_context}"""
 
 
 def _json_type_to_schema(val: Any) -> dict[str, Any]:
@@ -231,40 +190,35 @@ class CompanyExtractorLLM:
 
         pe = _num(overview.get("p_e_ratio") or overview.get("pe_ratio"))
         pbv = _num(overview.get("pbv"))
+        # Limit to last 5 dividends (from 15)
         dividend_values = []
-        for d in dividends[:15]:
+        for d in dividends[:5]:
             v = d.get("value") or ""
             fy = d.get("fiscal_year") or ""
             if v or fy:
-                dividend_values.append({"value": v, "fiscal_year": fy})
+                dividend_values.append({"v": v, "fy": fy})  # Shortened keys
         last_dividend = dividend_values[0] if dividend_values else None
 
+        # Shorter keys, removed less critical fields
         return {
-            "ticker_symbol": symbol,
-            "company_name": about.get("company_name") or raw_detail.get("company_display_name") or "",
+            "sym": symbol,
+            "name": about.get("company_name") or raw_detail.get("company_display_name") or "",
             "sector": about.get("sector") or overview.get("sector") or "",
-            "listed_shares": about.get("listed_shares"),
-            "paidup_value": about.get("paidup_value"),
-            "total_paidup_value": about.get("total_paidup_value"),
-            "market_data": {
-                "market_price": _num(overview.get("market_price")),
-                "pct_change": overview.get("pct_change") or "",
-                "52_weeks_high_low": overview.get("52_weeks_high_low") or "",
-                "120_day_average": overview.get("120_day_average"),
-                "market_capitalization": overview.get("market_capitalization") or "",
-                "shares_outstanding": overview.get("shares_outstanding"),
-                "30_day_avg_volume": overview.get("30_day_avg_volume") or "",
-                "1_year_yield": overview.get("1_year_yield") or "",
-                "last_traded_on": overview.get("last_traded_on"),
+            "mkt": {
+                "price": _num(overview.get("market_price")),
+                "change": overview.get("pct_change") or "",
+                "52w": overview.get("52_weeks_high_low") or "",
+                "cap": overview.get("market_capitalization") or "",
+                "yield": overview.get("1_year_yield") or "",
             },
-            "valuation": {
+            "val": {
                 "eps": _num(overview.get("eps")),
-                "pe_ratio": pe,
-                "book_value": _num(overview.get("book_value")),
+                "pe": pe,
+                "bv": _num(overview.get("book_value")),
                 "pbv": pbv,
             },
-            "dividend_history": dividend_values,
-            "dividend_summary": {"last_dividend": last_dividend, "years_of_data": len(dividend_values)},
+            "div": dividend_values,
+            "div_last": last_dividend,
         }
 
     def extract_from_raw_detail(self, raw_detail: dict[str, Any]) -> dict[str, Any]:

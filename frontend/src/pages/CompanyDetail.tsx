@@ -4,8 +4,6 @@ import { api } from "../api/client";
 import { useWatchlist } from "../contexts/WatchlistContext";
 import type {
   Company,
-  CompanyAnalysisListItem,
-  CompanyAnalysisResponse,
 } from "../types/company";
 import {
   getRiskTier,
@@ -56,13 +54,6 @@ function resetPageMeta() {
   if (ogUrl) ogUrl.setAttribute("content", "https://nepseai.shubraj.com/");
   const canonical = document.querySelector('link[rel="canonical"]');
   if (canonical) canonical.setAttribute("href", "https://nepseai.shubraj.com/");
-}
-
-function formatAnalysisDate(analyzed_at: string) {
-  return new Date(analyzed_at).toLocaleString(undefined, {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
 }
 
 const OVERVIEW_LABELS: Record<string, string> = {
@@ -389,8 +380,6 @@ function AnalysisCardsSection({ analysis }: { analysis: Analysis }) {
 export function CompanyDetail() {
   const { symbol } = useParams<{ symbol: string }>();
   const [company, setCompany] = useState<Company | null>(null);
-  const [analyses, setAnalyses] = useState<CompanyAnalysisListItem[]>([]);
-  const [selectedAnalysis, setSelectedAnalysis] = useState<CompanyAnalysisResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -399,12 +388,10 @@ export function CompanyDetail() {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    Promise.all([api.getCompany(symbol), api.listCompanyAnalyses(symbol)])
-      .then(([companyData, analysesData]) => {
+    api.getCompany(symbol)
+      .then((companyData) => {
         if (!cancelled) {
           setCompany(companyData);
-          setAnalyses(analysesData);
-          setSelectedAnalysis(null);
         }
       })
       .catch((e) => {
@@ -428,16 +415,7 @@ export function CompanyDetail() {
     return resetPageMeta;
   }, [company]);
 
-  const loadAnalysisById = (analysisId: number) => {
-    if (!symbol) return;
-    setSelectedAnalysis(null);
-    api
-      .getCompanyAnalysis(symbol, analysisId)
-      .then(setSelectedAnalysis)
-      .catch(() => setSelectedAnalysis(null));
-  };
-
-  const analysisToShow = selectedAnalysis?.analysis ?? company?.analysis ?? null;
+  const analysisToShow = company?.analysis ?? null;
 
   if (!symbol) return <p className="text-stone-600">Missing symbol.</p>;
   if (loading) return <p className="py-16 text-center text-stone-500">Loading company…</p>;
@@ -560,29 +538,6 @@ export function CompanyDetail() {
             </>
           );
         })()}
-        {analyses.length > 0 && (
-          <div className="mt-5 flex flex-wrap items-center gap-2">
-            <span className="text-sm text-stone-500">Analysis from:</span>
-            <select
-              onChange={(e) => {
-                const v = e.target.value;
-                if (v === "latest") setSelectedAnalysis(null);
-                else {
-                  const id = parseInt(v, 10);
-                  if (!Number.isNaN(id)) loadAnalysisById(id);
-                }
-              }}
-              className="rounded-lg border border-stone-200 bg-stone-50/80 px-3 py-2 text-sm text-stone-800 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20"
-            >
-              <option value="latest">Latest</option>
-              {analyses.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {formatAnalysisDate(a.analyzed_at)}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
       </header>
 
       <CurrentValuesSection sector={company.sector} overview={company.overview} />

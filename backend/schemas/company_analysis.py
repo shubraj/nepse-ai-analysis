@@ -13,6 +13,8 @@ class CompanyAnalysisResponse(BaseModel):
     company_id: int
     analyzed_at: datetime
     analysis: dict[str, Any]
+    sector: str | None = None
+    overview: dict[str, Any] | None = None
 
 
 class CompanyAnalysisListItem(BaseModel):

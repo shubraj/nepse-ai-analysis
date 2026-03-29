@@ -38,21 +38,18 @@ GOAL_LABELS = {
 }
 
 
-def _build_company_summaries(candidates: list[dict[str, Any]], goal: str) -> str:
-    """Build a compact text summary of each company for the chosen goal. Include market_price (NPR per share) and growth potential."""
+def _build_company_summaries(candidates: list[dict[str, Any]], _goal: str) -> str:
+    """Build compact text summary."""
     lines = []
     for c in candidates:
         symbol = c.get("symbol", "")
-        name = c.get("name", "")
-        sector = c.get("sector", "")
-        recommendation = c.get("recommendation", "")
-        risk_tier = c.get("risk_tier", "")
+        rec = c.get("recommendation", "")
+        risk = c.get("risk_tier", "")
         growth = (c.get("growth_potential") or "").strip() or "N/A"
-        outlook = (c.get("outlook_text") or "").strip() or "No outlook summary."
         price = c.get("market_price")
-        price_str = f" | Market price: NPR {price:.0f} per share" if price is not None and price > 0 else ""
-        lines.append(f"- {symbol} | {name} | Sector: {sector} | Recommendation: {recommendation} | Risk: {risk_tier} | Growth potential: {growth}{price_str}\n  Outlook: {outlook}")
-    return "\n\n".join(lines)
+        price_str = f" @{price:.0f}" if price else ""
+        lines.append(f"{symbol}{price_str}|{rec}|{risk}|{growth}")
+    return "\n".join(lines)
 
 
 def suggest_allocation_llm(
@@ -81,35 +78,18 @@ def suggest_allocation_llm(
     company_summaries = _build_company_summaries(candidates, goal)
     symbol_list = ", ".join(c.get("symbol", "") for c in candidates)
 
-    prompt = f"""You are a senior financial analyst for the Nepal stock market (NEPSE). A user wants to invest a fixed amount in NPR and needs your allocation suggestion.
+    prompt = f"""NEPSE analyst. Allocate NPR {amount_npr:,} for {goal_label}.
 
-## Important: whole shares only
-Nepal does not allow partial or fractional share buying. Each suggested_amount_npr MUST equal (whole number of shares × market price per share). Use the "Market price: NPR X per share" shown for each company: suggested_amount_npr must be a multiple of that price (e.g. if price is 500, suggest 2500, 5000, 10000 — never 3333). Minimum 1 share per stock.
+Rules:
+- Whole shares only (no fractional). suggested_amount_npr = shares × market_price
+- Pick 1-6 stocks from: {symbol_list}
+- Prefer higher growth potential
+- Get close to total amount
 
-## User input
-- Amount to invest: NPR {amount_npr:,}
-- Investment goal: {goal_label}
+Output JSON: {{"suggestions":[{{"symbol":"TICKER","suggested_amount_npr":5000,"allocation_pct":25.0,"outlook_label":"reason"}}]}}
 
-## Eligible companies (only suggest from this list)
-The following companies have been pre-screened as Consider or Watch (not Avoid). Use only these symbols: {symbol_list}.
-
-## Company summaries (analysis for the user's goal; market price in NPR per share)
-{company_summaries}
-
-## Your task
-1. Select between 1 and 6 stocks from the list above that best fit the user's goal ({goal_label}) and amount. Prefer higher growth potential (Growth potential: High > Moderate > Low) when it fits the goal and risk.
-2. For each stock, suggested_amount_npr MUST be (whole shares × market price). Only multiples of market_price; no fractional shares.
-3. Get as close as possible to total NPR {amount_npr:,} while respecting whole-share amounts (total may be slightly under).
-4. allocation_pct is the percentage of the total suggested amount for that stock (e.g. 25.0 for 25%).
-5. For each stock write a brief outlook_label: one short sentence explaining why it fits this goal (max 100 characters).
-
-Return a JSON object with a single key "suggestions" containing an array of objects, each with:
-- symbol (string): ticker symbol
-- suggested_amount_npr (integer): amount in NPR (must be whole shares × market_price for that symbol)
-- allocation_pct (number): percentage of total (e.g. 12.5)
-- outlook_label (string): brief reason for this suggestion
-
-Return valid JSON only. No markdown or extra text."""
+Companies:
+{company_summaries}"""
 
     client = genai.Client(api_key=key)
     for attempt in range(3):

@@ -43,3 +43,20 @@ def run_all_companies_sync(self):
         return {"total": total, "errors": errors}
     finally:
         db.close()
+
+
+@app.task(bind=True, name="tasks.generate_daily_market_prediction")
+def generate_daily_market_prediction(self):
+    """Generate tomorrow's market prediction."""
+    init_db()
+    db = SessionLocal()
+    try:
+        from services.market_prediction import get_or_create_prediction
+        result = get_or_create_prediction(db)
+        logger.info("Generated market prediction: %s", result.get("direction"))
+        return {"direction": result.get("direction"), "confidence": result.get("confidence")}
+    except Exception as e:
+        logger.error("Failed to generate market prediction: %s", e)
+        raise
+    finally:
+        db.close()

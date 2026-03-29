@@ -4,6 +4,7 @@ import { api } from "../api/client";
 import { useWatchlist } from "../contexts/WatchlistContext";
 import type {
   Company,
+  MarketPredictionResponse,
   MarketSentimentResponse,
   SectorPerformanceItem,
   SuggestionItem,
@@ -86,6 +87,7 @@ export function Dashboard() {
   const [timeToInvest, setTimeToInvest] = useState<Company[]>([]);
   const [waitForEntry, setWaitForEntry] = useState<Company[]>([]);
   const [marketSentiment, setMarketSentiment] = useState<MarketSentimentResponse | null>(null);
+  const [marketPrediction, setMarketPrediction] = useState<MarketPredictionResponse | null>(null);
   const [sectorPerformance, setSectorPerformance] = useState<SectorPerformanceItem[]>([]);
   const [watchlistCompanies, setWatchlistCompanies] = useState<Company[]>([]);
   const [watchlistLoading, setWatchlistLoading] = useState(false);
@@ -128,6 +130,7 @@ export function Dashboard() {
     setLoading(true);
     Promise.all([
       api.getMarketSentiment().catch(() => null),
+      api.getMarketPrediction().catch(() => null),
       api.getSectorPerformance().catch(() => ({ sectors: [] as SectorPerformanceItem[] })),
       api.listCompanies({ limit: 10, investability: "high" }),
       api.listCompanies({ limit: 10, risk_tier: "low" }),
@@ -135,9 +138,10 @@ export function Dashboard() {
       api.listCompanies({ limit: 10, entry_timing: "now" }),
       api.listCompanies({ limit: 10, entry_timing: "wait" }),
     ])
-      .then(([sentiment, sectorResp, a, b, c, d, e]) => {
+      .then(([sentiment, prediction, sectorResp, a, b, c, d, e]) => {
         if (!cancelled) {
           if (sentiment) setMarketSentiment(sentiment);
+          if (prediction) setMarketPrediction(prediction);
           setSectorPerformance(sectorResp?.sectors ?? []);
           setMostInvestable(a);
           setLowRisk(b);
@@ -265,6 +269,59 @@ export function Dashboard() {
                   <p className="text-sm text-stone-600">{marketSentiment.summary}</p>
                 )}
               </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {marketPrediction && (
+        <section className="rounded-2xl border border-stone-200/80 bg-white p-6 shadow-sm">
+          <h2 className="font-display text-lg font-semibold text-stone-900">Tomorrow&apos;s prediction</h2>
+          <p className="mt-1 text-sm text-stone-500">
+            AI prediction based on today&apos;s market data.
+          </p>
+          <div
+            className={`mt-4 rounded-xl border p-5 ${
+              marketPrediction.direction === "up"
+                ? "border-emerald-200 bg-emerald-50/80"
+                : marketPrediction.direction === "down"
+                  ? "border-red-200 bg-red-50/80"
+                  : "border-stone-200 bg-stone-50/80"
+            }`}
+          >
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+                <span
+                  className={`inline-flex w-fit items-center rounded-xl px-4 py-2 text-lg font-semibold ${
+                    marketPrediction.direction === "up"
+                      ? "bg-emerald-100 text-emerald-800"
+                      : marketPrediction.direction === "down"
+                        ? "bg-red-100 text-red-800"
+                        : "bg-stone-100 text-stone-800"
+                  }`}
+                >
+                  {marketPrediction.direction === "up" ? "↑ Up" : marketPrediction.direction === "down" ? "↓ Down" : "→ Flat"}
+                </span>
+                {marketPrediction.predicted_change_pct && (
+                  <span className={`font-semibold ${marketPrediction.direction === "up" ? "text-emerald-600" : marketPrediction.direction === "down" ? "text-red-600" : "text-stone-600"}`}>
+                    {marketPrediction.predicted_change_pct}
+                  </span>
+                )}
+                <span className="text-stone-600">Confidence: {marketPrediction.confidence}/10</span>
+              </div>
+              <p className="text-sm text-stone-700">{marketPrediction.summary}</p>
+              {marketPrediction.key_factors?.length > 0 && (
+                <div className="mt-2">
+                  <span className="text-xs font-medium text-stone-500">Key factors:</span>
+                  <ul className="mt-1 flex flex-wrap gap-2">
+                    {marketPrediction.key_factors.map((factor, i) => (
+                      <li key={i} className="rounded-lg bg-white/80 px-2 py-1 text-xs text-stone-600">
+                        {factor}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           </div>
         </section>

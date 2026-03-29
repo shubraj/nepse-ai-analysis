@@ -15,9 +15,11 @@ from models.company import Company
 from models.company_analysis import CompanyAnalysis
 from schemas.company import CompanyResponse
 from schemas.company_analysis import CompanyAnalysisListItem, CompanyAnalysisResponse
+from schemas.market_prediction import MarketPredictionResponse
 from schemas.market_sentiment import MarketSentimentResponse
 from schemas.sector_performance import SectorPerformanceItem, SectorPerformanceResponse
 from schemas.suggestions import SuggestionItem, SuggestionsResponse
+from services.market_prediction import get_or_create_prediction
 from services.market_sentiment import get_market_sentiment
 from services.sector_performance import get_sector_performance
 from services.suggestions import get_suggestions as get_suggestions_service
@@ -282,6 +284,29 @@ def get_company_analysis(symbol: str, analysis_id: int, db: Session = Depends(ge
     ).first()
     if not rec:
         raise HTTPException(status_code=404, detail="Analysis not found")
-    result = CompanyAnalysisResponse.model_validate(rec)
+    result = CompanyAnalysisResponse(
+        id=rec.id,
+        company_id=rec.company_id,
+        analyzed_at=rec.analyzed_at,
+        analysis=rec.analysis,
+        sector=rec.analysis.get("overview", {}).get("sector") if isinstance(rec.analysis.get("overview"), dict) else company.sector,
+        overview=rec.analysis.get("overview") if isinstance(rec.analysis.get("overview"), dict) else None,
+    )
     cache_set(cache_key, result.model_dump(mode="json"))
     return result
+
+
+MARKET_PREDICTION_CACHE_TTL = 3600  # 1 hour
+
+
+@router.get("/market-prediction", response_model=MarketPredictionResponse)
+def get_market_prediction(db: Session = Depends(get_db)):
+    """Get AI prediction for tomorrow's market movement."""
+    cache_key = f"{CACHE_KEY_PREFIX}market-prediction"
+    cached = cache_get(cache_key)
+    if cached is not None:
+        return MarketPredictionResponse(**cached)
+
+    result = get_or_create_prediction(db)
+    cache_set(cache_key, result, ttl=MARKET_PREDICTION_CACHE_TTL)
+    return MarketPredictionResponse(**result)

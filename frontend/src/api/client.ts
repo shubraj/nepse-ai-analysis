@@ -73,4 +73,6 @@ export const api = {
     request<import("../types/company").MarketSentimentResponse>("/market-sentiment"),
   getSectorPerformance: () =>
     request<import("../types/company").SectorPerformanceResponse>("/sector-performance"),
+  getMarketPrediction: () =>
+    request<import("../types/company").MarketPredictionResponse>("/market-prediction"),
 };

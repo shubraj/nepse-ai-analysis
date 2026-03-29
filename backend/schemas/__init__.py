@@ -1,5 +1,6 @@
 from schemas.company import CompanyCreate, CompanyResponse, CompanyUpdate
 from schemas.company_analysis import CompanyAnalysisListItem, CompanyAnalysisResponse
+from schemas.market_prediction import MarketPredictionResponse
 
 __all__ = [
     "CompanyCreate",
@@ -7,4 +8,5 @@ __all__ = [
     "CompanyResponse",
     "CompanyAnalysisResponse",
     "CompanyAnalysisListItem",
+    "MarketPredictionResponse",
 ]
