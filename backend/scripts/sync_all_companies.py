@@ -36,7 +36,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Sync all companies from Merolagani and store in DB.")
     parser.add_argument("--no-analysis", action="store_true", help="Only fetch detail; do not run AI analysis.")
     parser.add_argument("--limit", type=int, default=0, help="Max number of companies to process (0 = all).")
-    parser.add_argument("--workers", type=int, default=20, help="Thread pool size (default: 5).")
+    parser.add_argument("--workers", type=int, default=5, help="Thread pool size (default: 5).")
     args = parser.parse_args()
 
     init_db()

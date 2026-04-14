@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../api/client";
+import { updatePageMeta, addJsonLd, createBreadcrumbSchema } from "../lib/seo";
 import type { Company } from "../types/company";
 import {
   getRiskTier,
@@ -25,28 +26,28 @@ export function CompanyList() {
 
   const [sectors, setSectors] = useState<string[]>([]);
 
-  // SEO: screener page meta
+  // SEO: screener page meta and schema
   useEffect(() => {
-    const title = "NEPSE Stock Screener – Filter Nepal Stocks by Risk & Recommendation | NEPSE Research";
-    const description =
-      "Filter NEPSE stocks by risk, recommendation, sector, and entry timing. AI-based analysis on historical data to help you screen Nepal stock market opportunities.";
-    document.title = title;
-    const descEl = document.querySelector('meta[name="description"]');
-    if (descEl) descEl.setAttribute("content", description);
-    const ogTitle = document.querySelector('meta[property="og:title"]');
-    if (ogTitle) ogTitle.setAttribute("content", title);
-    const ogDesc = document.querySelector('meta[property="og:description"]');
-    if (ogDesc) ogDesc.setAttribute("content", description);
-    const twTitle = document.querySelector('meta[name="twitter:title"]');
-    if (twTitle) twTitle.setAttribute("content", title);
-    const twDesc = document.querySelector('meta[name="twitter:description"]');
-    if (twDesc) twDesc.setAttribute("content", description);
-    const canonical = document.querySelector('link[rel="canonical"]');
-    const url = `${window.location.origin}/companies`;
-    if (canonical) canonical.setAttribute("href", url);
-    const ogUrl = document.querySelector('meta[property="og:url"]');
-    if (ogUrl) ogUrl.setAttribute("content", url);
-  }, []);
+    const riskLabel = risk_tier ? ` – ${risk_tier}` : "";
+    const title = `NEPSE Stock Screener${riskLabel} | Filter Nepal Stocks | NEPSE Research`;
+    const description = `Filter NEPSE stocks by risk tier, investment recommendation, sector and entry timing. AI-powered fundamental analysis for Nepal stock market screening and discovery.`;
+
+    updatePageMeta({
+      title,
+      description,
+      keywords: "NEPSE screener, stock filter, risk analysis, Nepal stocks, investment recommendations",
+      url: window.location.href,
+      canonicalUrl: `${window.location.origin}/companies`,
+    });
+
+    // Add breadcrumb schema
+    addJsonLd(
+      createBreadcrumbSchema([
+        { name: "Home", url: `${window.location.origin}/` },
+        { name: "Screener", url: `${window.location.origin}/companies` },
+      ])
+    );
+  }, [risk_tier]);
 
   useEffect(() => {
     let cancelled = false;
@@ -96,8 +97,10 @@ export function CompanyList() {
 
   return (
     <div className="space-y-6">
-      <h1 className="font-display text-2xl font-semibold text-stone-900">Company screener</h1>
-      <p className="text-sm text-stone-500">Filter by recommendation and risk. Analysis is AI-based on historical data and is not professional investment advice.</p>
+      <header>
+        <h1 className="font-display text-3xl font-bold text-stone-900">NEPSE Stock Screener</h1>
+        <p className="mt-2 text-base text-stone-600">Filter by recommendation and risk. AI analysis based on historical data – not professional investment advice.</p>
+      </header>
 
       <div className="flex flex-wrap gap-3">
         <div className="rounded-2xl border border-stone-200/80 bg-white px-5 py-3 shadow-sm">

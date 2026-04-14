@@ -7,9 +7,9 @@ import time
 from typing import Any
 
 try:
-    from google import genai
+    import ollama
 except ImportError:
-    genai = None
+    ollama = None
 
 logger = logging.getLogger("SuggestionLLM")
 
@@ -48,7 +48,10 @@ def _build_company_summaries(candidates: list[dict[str, Any]], _goal: str) -> st
         growth = (c.get("growth_potential") or "").strip() or "N/A"
         price = c.get("market_price")
         price_str = f" @{price:.0f}" if price else ""
-        lines.append(f"{symbol}{price_str}|{rec}|{risk}|{growth}")
+        sector = (c.get("sector") or "").strip() or "N/A"
+        outlook = (c.get("outlook_text") or "").strip() or "N/A"
+        signals = (c.get("analysis_signals") or "").strip() or "N/A"
+        lines.append(f"{symbol}{price_str}|sector={sector}|rec={rec}|risk={risk}|growth={growth}|outlook={outlook}|signals={signals}")
     return "\n".join(lines)
 
 
@@ -58,18 +61,20 @@ def suggest_allocation_llm(
     candidates: list[dict[str, Any]],
     api_key: str | None = None,
     model: str | None = None,
+    host: str | None = None,
 ) -> list[dict[str, Any]]:
     """
-    Call Gemini to suggest how to allocate amount_npr (NPR) across the given candidates
+    Call Ollama to suggest how to allocate amount_npr (NPR) across the given candidates
     for the given goal (short_term, mid_term, long_term). Returns list of
     { symbol, suggested_amount_npr, allocation_pct, outlook_label }.
     """
-    if not genai:
-        raise RuntimeError("google-genai is required for AI suggestions. Install: pip install google-genai")
-    key = api_key or os.getenv("GEMINI_API_KEY")
+    if not ollama:
+        raise RuntimeError("ollama is required for AI suggestions. Install: pip install ollama")
+    key = api_key or os.getenv("OLLAMA_API_KEY")
     if not key:
-        raise ValueError("GEMINI_API_KEY is required for AI suggestions")
-    model_name = model or os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+        raise ValueError("OLLAMA_API_KEY is required for AI suggestions")
+    model_name = model or os.getenv("OLLAMA_MODEL", "kimi-k2.5:cloud")
+    host_url = host or os.getenv("OLLAMA_HOST", "https://ollama.com")
 
     if not candidates or amount_npr < 1000:
         return []
@@ -77,32 +82,57 @@ def suggest_allocation_llm(
     goal_label = GOAL_LABELS.get(goal, goal)
     company_summaries = _build_company_summaries(candidates, goal)
     symbol_list = ", ".join(c.get("symbol", "") for c in candidates)
+    analysis_signals = "\n".join(c.get("analysis_signals", "") for c in candidates if c.get("analysis_signals"))
 
-    prompt = f"""NEPSE analyst. Allocate NPR {amount_npr:,} for {goal_label}.
+    prompt = f"""You are allocating Nepal stocks for a real portfolio, not writing marketing copy.
+
+Goal: {goal_label}
+Allocate NPR {amount_npr:,} across 1-6 stocks from the candidate list below.
 
 Rules:
-- Whole shares only (no fractional). suggested_amount_npr = shares × market_price
-- Pick 1-6 stocks from: {symbol_list}
-- Prefer higher growth potential
-- Get close to total amount
+- Whole shares only. suggested_amount_npr must equal shares x market_price.
+- Prefer stocks whose analysis aligns with the goal horizon.
+- Use risk_tier, recommendation, valuation, dividend quality, and outlook numbers together.
+- For short term, prefer stronger catalyst / momentum / entry timing.
+- For mid term, prefer balanced growth and manageable risk.
+- For long term, prefer durable business quality, dividend reliability, and compounding potential.
+- Do not allocate to every stock just because it appears in the list.
+- Return only the best 1-6 stocks and get as close as possible to the total amount.
+- If the best choice is concentrated, use fewer stocks.
 
 Output JSON: {{"suggestions":[{{"symbol":"TICKER","suggested_amount_npr":5000,"allocation_pct":25.0,"outlook_label":"reason"}}]}}
 
 Companies:
-{company_summaries}"""
+{company_summaries}
 
-    client = genai.Client(api_key=key)
+Analysis signals:
+{analysis_signals}"""
+
+    client = ollama.Client(host=host_url)
     for attempt in range(3):
         try:
-            response = client.models.generate_content(
+            response = client.chat(
                 model=model_name,
-                contents=prompt,
-                config={
-                    "response_mime_type": "application/json",
-                    "response_schema": _SUGGESTION_RESPONSE_SCHEMA,
-                },
+                messages=[
+                    {
+                        'role': 'system',
+                        'content': 'Return only valid JSON. Focus on stock allocation quality, goal fit, and whole-share arithmetic.',
+                    },
+                    {
+                        'role': 'user',
+                        'content': prompt,
+                    }
+                ],
+                format='json',
+                stream=False,
+                options={"temperature": 0},
             )
-            text = (response.text or "").strip()
+            message = response.get('message', {}) if isinstance(response, dict) else {}
+            if isinstance(message, dict):
+                text = message.get('content') or message.get('response') or ""
+            else:
+                text = getattr(response, 'message', None) and getattr(response.message, 'content', None) or getattr(response, 'text', None) or ""
+            text = str(text).strip()
             data = json.loads(text)
             suggestions = data.get("suggestions") if isinstance(data, dict) else None
             if not isinstance(suggestions, list):

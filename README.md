@@ -9,7 +9,7 @@ From project root:
 
 ```bash
 cp .env.example .env
-# Edit .env and set GEMINI_API_KEY (required for analysis)
+# Edit .env and set OLLAMA_API_KEY (required for analysis)
 
 docker compose up -d
 ```
@@ -33,7 +33,7 @@ uv run uvicorn main:app --reload
 - API: http://127.0.0.1:8000  
 - Docs: http://127.0.0.1:8000/docs  
 
-Put `.env` in `backend/` (e.g. `GEMINI_API_KEY`, `GEMINI_MODEL`). Database: `backend/data/merolagani.db`.
+Put `.env` in `backend/` (e.g. `OLLAMA_API_KEY`, `OLLAMA_MODEL`, `OLLAMA_HOST`). Database: `backend/data/merolagani.db`.
 
 **Celery:** Run a worker and beat process from `backend/` (Redis required) to sync all companies and run analysis every 12 hours. See `backend/README.md`.
 

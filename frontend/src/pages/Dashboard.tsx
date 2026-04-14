@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api/client";
 import { useWatchlist } from "../contexts/WatchlistContext";
+import { updatePageMeta, addJsonLd, createBreadcrumbSchema } from "../lib/seo";
 import type {
   Company,
   MarketPredictionResponse,
@@ -102,27 +103,22 @@ export function Dashboard() {
   const [suggestLoading, setSuggestLoading] = useState(false);
   const [suggestError, setSuggestError] = useState<string | null>(null);
 
-  // SEO: home page meta
+  // SEO: home page meta and schema
   useEffect(() => {
-    const title = "NEPSE Research – NEPSE Stock AI Analysis";
-    const description =
-      "Free AI-powered NEPSE stock analysis and screener for the Nepal stock market. Informational only, not investment advice.";
-    document.title = title;
-    const descEl = document.querySelector('meta[name="description"]');
-    if (descEl) descEl.setAttribute("content", description);
-    const ogTitle = document.querySelector('meta[property="og:title"]');
-    if (ogTitle) ogTitle.setAttribute("content", title);
-    const ogDesc = document.querySelector('meta[property="og:description"]');
-    if (ogDesc) ogDesc.setAttribute("content", description);
-    const twTitle = document.querySelector('meta[name="twitter:title"]');
-    if (twTitle) twTitle.setAttribute("content", title);
-    const twDesc = document.querySelector('meta[name="twitter:description"]');
-    if (twDesc) twDesc.setAttribute("content", description);
-    const canonical = document.querySelector('link[rel="canonical"]');
-    const url = `${window.location.origin}/`;
-    if (canonical) canonical.setAttribute("href", url);
-    const ogUrl = document.querySelector('meta[property="og:url"]');
-    if (ogUrl) ogUrl.setAttribute("content", url);
+    updatePageMeta({
+      title: "NEPSE Research – Free AI Stock Analysis Dashboard",
+      description: "Free AI-powered NEPSE stock analysis dashboard. View market sentiment, sector performance, investment ideas and entry timing for Nepal stock market companies.",
+      keywords: "NEPSE stocks, Nepal stock market, AI stock analysis, stock screener, market sentiment",
+      url: `${window.location.origin}/`,
+      canonicalUrl: `${window.location.origin}/`,
+    });
+
+    // Add breadcrumb schema
+    addJsonLd(
+      createBreadcrumbSchema([
+        { name: "Home", url: `${window.location.origin}/` },
+      ])
+    );
   }, []);
 
   useEffect(() => {
@@ -203,12 +199,12 @@ export function Dashboard() {
   return (
     <div className="space-y-10">
       <header className="rounded-2xl border border-stone-200/80 bg-white px-6 py-8 text-center shadow-sm sm:py-10">
-        <h1 className="font-display text-2xl font-semibold text-stone-900 sm:text-3xl">NEPSE Equity Research</h1>
-        <p className="mx-auto mt-2 max-w-xl text-stone-600">
-          Company analysis, risk profile, and entry timing for the Nepal stock market.
+        <h1 className="font-display text-3xl font-bold text-stone-900 sm:text-4xl">NEPSE Research Dashboard</h1>
+        <p className="mx-auto mt-3 max-w-2xl text-lg text-stone-600">
+          AI-powered fundamental analysis, risk assessment, and investment recommendations for Nepal stock market companies.
         </p>
-        <p className="mx-auto mt-3 max-w-xl text-xs text-stone-500">
-          AI-based analysis from historical data. Not professional investment advice.
+        <p className="mx-auto mt-2 max-w-xl text-xs text-stone-500">
+          Historical data analysis for informational purposes. Not professional investment advice.
         </p>
         <Link
           to="/companies"

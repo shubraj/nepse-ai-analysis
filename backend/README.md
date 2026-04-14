@@ -15,7 +15,7 @@ cd backend
 uv run python scripts/sync_all_companies.py
 ```
 
-Options: `--no-analysis` (only fetch detail, no Gemini), `--limit N` (process first N companies).
+Options: `--no-analysis` (only fetch detail, no Ollama), `--limit N` (process first N companies).
 
 **Celery (sync all companies every 12 hours)**  
 Requires Redis (e.g. `redis-server`). From `backend/`:
@@ -32,16 +32,16 @@ Set `CELERY_BROKER_URL` and `CELERY_RESULT_BACKEND` in `.env` if not using defau
 
 - **main.py** – FastAPI app entrypoint
 - **database.py** – SQLAlchemy engine, session, `get_db`, `init_db`
-- **config.py** – Paths, `DATABASE_URL`, Celery broker, Gemini env
+- **config.py** – Paths, `DATABASE_URL`, Celery broker, Ollama env
 - **celery_app.py** – Celery app and beat schedule (every 12 h)
 - **tasks.py** – `run_all_companies_sync` task
 - **routers/** – API routes (read-only; no endpoints that trigger fetch or extraction – use scripts/Celery)
 - **models/** – Company, CompanyAnalysis (history by date)
 - **schemas/** – Pydantic request/response schemas
 - **services/** – Extractor and Merolagani client wrappers
-- **core/** – Merolagani HTTP client and Gemini extractor
+- **core/** – Merolagani HTTP client and Ollama extractor
 - **data/** – SQLite DB (created on first run)
 - **format.json** – Target schema for AI analysis
-- **.env** – Optional: `GEMINI_API_KEY`, `GEMINI_MODEL`, `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND`
+- **.env** – Optional: `OLLAMA_API_KEY`, `OLLAMA_MODEL`, `OLLAMA_HOST`, `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND`
 
 API docs: http://127.0.0.1:8000/docs

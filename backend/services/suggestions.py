@@ -145,6 +145,51 @@ def _outlook_text_for_llm(analysis: dict[str, Any] | None, goal: str) -> str:
     return " ".join(p for p in parts if p).strip() or "No outlook summary."
 
 
+def _extract_analysis_signals(analysis: dict[str, Any] | None, goal: str) -> str:
+    if not analysis:
+        return "No analysis data."
+
+    inv = analysis.get("investment_snapshot") if isinstance(analysis.get("investment_snapshot"), dict) else {}
+    val = analysis.get("valuation_analysis") if isinstance(analysis.get("valuation_analysis"), dict) else {}
+    div = analysis.get("dividend_profile") if isinstance(analysis.get("dividend_profile"), dict) else {}
+    fin = analysis.get("final_decision") if isinstance(analysis.get("final_decision"), dict) else {}
+
+    parts = [
+        f"quality={inv.get('investment_quality_score_numeric', 'N/A')}",
+        f"risk={inv.get('risk_score_numeric', 'N/A')}",
+        f"return={inv.get('return_potential_numeric', 'N/A')}",
+        f"valuation={val.get('valuation_status', 'N/A')}",
+        f"dividend_consistency={div.get('dividend_consistency_score_numeric', 'N/A')}",
+        f"income_reliability={div.get('income_reliability_score_numeric', 'N/A')}",
+        f"entry_timing={fin.get('entry_timing', 'N/A')}",
+        f"recommendation={fin.get('recommendation', 'N/A')}",
+    ]
+
+    if goal == "short_term":
+        o = analysis.get("short_term_outlook_0_to_12_months") if isinstance(analysis.get("short_term_outlook_0_to_12_months"), dict) else {}
+        parts.extend([
+            f"short_growth={o.get('growth_probability_numeric', 'N/A')}",
+            f"short_return_low={o.get('expected_return_low_pct', 'N/A')}",
+            f"short_return_high={o.get('expected_return_high_pct', 'N/A')}",
+        ])
+    elif goal == "mid_term":
+        o = analysis.get("mid_term_outlook_1_to_3_years") if isinstance(analysis.get("mid_term_outlook_1_to_3_years"), dict) else {}
+        parts.extend([
+            f"mid_growth={o.get('growth_probability_numeric', 'N/A')}",
+            f"mid_return_min={o.get('expected_annual_return_min_pct', 'N/A')}",
+            f"mid_return_max={o.get('expected_annual_return_max_pct', 'N/A')}",
+        ])
+    else:
+        o = analysis.get("long_term_outlook_3_to_5_years") if isinstance(analysis.get("long_term_outlook_3_to_5_years"), dict) else {}
+        parts.extend([
+            f"long_growth={o.get('growth_probability_numeric', 'N/A')}",
+            f"long_return_min={o.get('expected_annual_return_best_case_min_pct', 'N/A')}",
+            f"long_return_max={o.get('expected_annual_return_best_case_max_pct', 'N/A')}",
+        ])
+
+    return "; ".join(parts)
+
+
 def _market_price(company: Company) -> float | None:
     """Market price NPR per share from company overview."""
     ov = company.overview if getattr(company, "overview", None) else ((company.raw_detail or {}).get("overview") if company.raw_detail else None)
@@ -229,7 +274,7 @@ def _get_suggestions_rule_based(
 
 
 def get_suggestions(db: Session, amount_npr: int, goal: str, max_stocks: int = 8) -> list[dict[str, Any]]:
-    """Return suggested stocks: consider/watch only. Uses AI (Gemini) when available, else rule-based allocation."""
+    """Return suggested stocks: consider/watch only. Uses AI when available, else rule-based allocation."""
     if amount_npr < 1000 or goal not in ("short_term", "mid_term", "long_term"):
         return []
 
@@ -269,6 +314,7 @@ def get_suggestions(db: Session, amount_npr: int, goal: str, max_stocks: int = 8
                 "recommendation": rec,
                 "risk_tier": risk,
                 "outlook_text": _outlook_text_for_llm(c.analysis, goal),
+                "analysis_signals": _extract_analysis_signals(c.analysis, goal),
                 "market_price": price,
                 "growth_potential": _growth_potential_label(c.analysis),
             })

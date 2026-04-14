@@ -6,8 +6,8 @@ from pathlib import Path
 try:
     from dotenv import load_dotenv
     _dir = Path(__file__).resolve().parent
-    load_dotenv(_dir / ".env")
-    load_dotenv(_dir.parent / ".env")
+    load_dotenv(_dir / ".env",override=True)
+    load_dotenv(_dir.parent / ".env",override=True)
 except ImportError:
     pass
 
@@ -22,8 +22,9 @@ CACHE_REDIS_URL = os.getenv("CACHE_REDIS_URL", CELERY_BROKER_URL)
 CACHE_KEY_PREFIX = os.getenv("CACHE_KEY_PREFIX", "nepse:cache:")
 CACHE_TTL_SECONDS = int(os.getenv("CACHE_TTL_SECONDS", "14400"))
 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+OLLAMA_API_KEY = os.getenv("OLLAMA_API_KEY")
+OLLAMA_HOST = os.getenv("OLLAMA_HOST", "https://ollama.com")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "kimi-k2.5:cloud")
 
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173")
 SITE_URL = os.getenv("SITE_URL", "https://nepseai.shubraj.com").rstrip("/")

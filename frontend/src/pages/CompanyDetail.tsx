@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api } from "../api/client";
 import { useWatchlist } from "../contexts/WatchlistContext";
+import { updatePageMeta, addJsonLd, createBreadcrumbSchema, createArticleSchema } from "../lib/seo";
 import type {
   Company,
 } from "../types/company";
@@ -17,25 +18,39 @@ const DEFAULT_DOC_TITLE = "NEPSE Research – NEPSE Stock AI Analysis";
 const DEFAULT_META_DESCRIPTION =
   "Free AI-powered NEPSE stock analysis and screener for the Nepal stock market. Informational only, not investment advice.";
 
-function setPageMeta(title: string, description: string, path?: string) {
-  document.title = title;
-  const descEl = document.querySelector('meta[name="description"]');
-  if (descEl) descEl.setAttribute("content", description);
-  const ogTitle = document.querySelector('meta[property="og:title"]');
-  if (ogTitle) ogTitle.setAttribute("content", title);
-  const ogDesc = document.querySelector('meta[property="og:description"]');
-  if (ogDesc) ogDesc.setAttribute("content", description);
-  const twTitle = document.querySelector('meta[name="twitter:title"]');
-  if (twTitle) twTitle.setAttribute("content", title);
-  const twDesc = document.querySelector('meta[name="twitter:description"]');
-  if (twDesc) twDesc.setAttribute("content", description);
-  if (path) {
-    const ogUrl = document.querySelector('meta[property="og:url"]');
-    const canonical = document.querySelector('link[rel="canonical"]');
-    const url = `${window.location.origin}${path}`;
-    if (ogUrl) ogUrl.setAttribute("content", url);
-    if (canonical) canonical.setAttribute("href", url);
-  }
+function setPageMeta(company: Company) {
+  const title = `${company.symbol}: ${company.name} – NEPSE Stock Analysis | NEPSE Research`;
+  const description = `AI-powered analysis of ${company.symbol} (${company.name}) stock on Nepal stock exchange. Risk assessment, valuation, and investment recommendations.`;
+
+  updatePageMeta({
+    title,
+    description,
+    keywords: `${company.symbol}, ${company.name}, NEPSE analysis, Nepal stock, ${company.sector || ""}`,
+    url: `/company/${company.symbol}`,
+    canonicalUrl: `${window.location.origin}/company/${company.symbol}`,
+    image: undefined,
+  });
+
+  // Add breadcrumb schema
+  addJsonLd(
+    createBreadcrumbSchema([
+      { name: "Home", url: `${window.location.origin}/` },
+      { name: "Screener", url: `${window.location.origin}/companies` },
+      { name: company.symbol, url: `${window.location.origin}/company/${company.symbol}` },
+    ])
+  );
+
+  // Add article schema for the analysis
+  addJsonLd(
+    createArticleSchema({
+      headline: `${company.symbol}: ${company.name}`,
+      description,
+      datePublished: company.created_at,
+      dateModified: company.updated_at,
+      author: "NEPSE Research",
+      keywords: `${company.symbol}, ${company.sector || "Nepal stocks"}`,
+    })
+  );
 }
 
 function resetPageMeta() {
@@ -407,10 +422,7 @@ export function CompanyDetail() {
 
   useEffect(() => {
     if (company) {
-      const fullName = company.name || company.symbol;
-      const title = `${fullName} (${company.symbol}) | NEPSE Stock AI Analysis`;
-      const description = `${fullName} (${company.symbol}) – Free AI analysis, NEPSE fundamental & technical analysis, valuation and risk. Nepal stock AI analysis.`;
-      setPageMeta(title, description, `/company/${company.symbol}`);
+      setPageMeta(company);
     }
     return resetPageMeta;
   }, [company]);

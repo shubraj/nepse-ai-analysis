@@ -11,9 +11,9 @@ from sqlalchemy.orm import Session
 from models.company import Company
 
 try:
-    from google import genai
+    import ollama
 except ImportError:
-    genai = None
+    ollama = None
 
 logger = logging.getLogger("market_prediction")
 
@@ -26,6 +26,8 @@ Input data:
 - Stocks down: {stocks_down}
 - Top gainers today: {top_gainers}
 - Top losers today: {top_losers}
+- Breadth score: {breadth_score:.2f}
+- Recent trend score: {trend_score:.2f}
 
 Output JSON:
 {{
@@ -38,12 +40,13 @@ Output JSON:
 }}
 
 Rules:
-- sentiment: overall market sentiment
+- sentiment: overall market sentiment from breadth, trend, and recent performance
 - direction: predicted direction (up/down/flat)
-- confidence: 1-10 scale
-- predicted_change_pct: estimated NEPSE index change percentage
-- key_factors: 2-3 key factors driving prediction
+- confidence: 1-10 scale, conservative when breadth is mixed
+- predicted_change_pct: estimated NEPSE index change percentage in a tight range around zero unless trend is strong
+- key_factors: 2-3 key factors driving prediction, based only on the input data
 - summary: brief prediction in plain language (max 150 chars)
+- If the market is mixed, prefer neutral/flat instead of forcing a strong call.
 
 Return valid JSON only."""
 
@@ -87,6 +90,8 @@ def _build_market_context(db: Session) -> dict[str, Any]:
             continue
 
     avg_change = sum(pct_changes) / len(pct_changes) if pct_changes else 0.0
+    breadth_score = (stocks_up - stocks_down) / total if total else 0.0
+    trend_score = avg_change
 
     # Sort and get top 5
     gainers.sort(key=lambda x: x["change"], reverse=True)
@@ -97,6 +102,8 @@ def _build_market_context(db: Session) -> dict[str, Any]:
         "avg_pct_change": avg_change,
         "stocks_up": stocks_up,
         "stocks_down": stocks_down,
+        "breadth_score": breadth_score,
+        "trend_score": trend_score,
         "top_gainers": gainers[:5],
         "top_losers": losers[:5],
     }
@@ -104,16 +111,17 @@ def _build_market_context(db: Session) -> dict[str, Any]:
 
 def generate_market_prediction(db: Session) -> dict[str, Any]:
     """Generate tomorrow's market prediction using AI."""
-    if not genai:
-        logger.error("google-genai not installed")
+    if not ollama:
+        logger.error("ollama not installed")
         return _fallback_prediction()
 
-    api_key = os.getenv("GEMINI_API_KEY")
+    api_key = os.getenv("OLLAMA_API_KEY")
     if not api_key:
-        logger.error("GEMINI_API_KEY not set")
+        logger.error("OLLAMA_API_KEY not set")
         return _fallback_prediction()
 
-    model = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
+    model = os.getenv("OLLAMA_MODEL", "kimi-k2.5:cloud")
+    host = os.getenv("OLLAMA_HOST", "https://ollama.com")
 
     context = _build_market_context(db)
 
@@ -122,21 +130,34 @@ def generate_market_prediction(db: Session) -> dict[str, Any]:
         avg_pct_change=context["avg_pct_change"],
         stocks_up=context["stocks_up"],
         stocks_down=context["stocks_down"],
+        breadth_score=context["breadth_score"],
+        trend_score=context["trend_score"],
         top_gainers=json.dumps(context["top_gainers"]),
         top_losers=json.dumps(context["top_losers"]),
     )
 
     try:
-        client = genai.Client(api_key=api_key)
-        response = client.models.generate_content(
+        client = ollama.Client(host=host)
+        response = client.chat(
             model=model,
-            contents=prompt,
-            config={
-                "response_mime_type": "application/json",
-            },
+            messages=[
+                {
+                    'role': 'system',
+                    'content': 'Return only valid JSON. Be conservative, data-driven, and avoid overconfident market calls.',
+                },
+                {
+                    'role': 'user',
+                    'content': prompt,
+                }
+            ],
+            format='json',
+            stream=False,
+            options={"temperature": 0},
         )
 
-        text = (response.text or "").strip()
+        message = response.get('message', {}) if isinstance(response, dict) else {}
+        text = (message.get('content') if isinstance(message, dict) else getattr(response, 'message', None) and getattr(response.message, 'content', None) or "")
+        text = str(text).strip()
         data = json.loads(text)
 
         # Validate required fields

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Company data extractor via Gemini; output follows format.json."""
+"""Company data extractor via Ollama; output follows format.json."""
 
 import json
 import logging
@@ -17,9 +17,9 @@ except ImportError:
     pass
 
 try:
-    from google import genai
+    import ollama
 except ImportError:
-    raise ImportError("google-genai is required. Install: pip install google-genai")
+    raise ImportError("ollama is required. Install: pip install ollama")
 
 from screening_constants import final_decision_from_numerics
 
@@ -64,7 +64,20 @@ if not logger.handlers:
     logger.addHandler(fh)
     logger.addHandler(sh)
 
-_EXTRACTION_PROMPT = """NEPSE financial analyst. Output strict JSON analysis.
+_EXTRACTION_PROMPT = """You are a NEPSE equity analyst generating one structured JSON record for a listed Nepal company.
+
+Use only the provided context. Do not invent ratios, future events, or company facts. If a field cannot be supported by the context, use null or an empty list.
+
+Scoring guidance:
+- investment_quality_score_numeric: overall fundamental quality from 1 to 10
+- risk_score_numeric: downside and business risk from 1 to 10
+- return_potential_numeric: expected upside potential from 1 to 10
+- valuation_score_numeric: -1 overvalued, 0 fair, 1 undervalued
+- volatility_score_numeric: share-price volatility / instability from 1 to 10
+- confidence_score_numeric: confidence in the final decision from 1 to 10
+- entry_timing: Now only if the setup is attractive today; Wait if interesting but needs patience; Avoid if quality or risk are poor
+
+Make the output conservative and evidence-based. Favor lower confidence when data is thin. Use the Nepal stock market context, but keep the output fully machine-readable.
 
 Required fields:
 - ticker_symbol, company_name, sector, market_position
@@ -80,9 +93,15 @@ Required fields:
 - who_should_invest[2-4], who_should_avoid[2-4]
 - final_decision: invest_now(text), invest_score_numeric(0/0.5/1), wait_option(text), confidence_level(text), confidence_score_numeric(1-10), risk_tier(Low/Moderate/High), investability_label(High/Moderate/Low), entry_timing(Now/Wait/Avoid), recommendation(Consider/Watch/Avoid), summary_verdict
 
-Rules: risk_tier=1-4:Low,5-6:Moderate,7-10:High. investability=avg(quality,confidence)>=7:High,>=4:Moderate. entry_timing>=0.5:Now,>0:Wait,0:Avoid. recommendation=Consider if Now,Watch if Wait,Avoid if Avoid.
+Decision rubric:
+- High quality, strong earnings/dividend trend, attractive valuation, and manageable risk support Consider/Now.
+- Weak liquidity, weak profitability signals, or high volatility should push toward Watch/Avoid.
+- Use valuation, dividend profile, short-term catalyst strength, and long-term durability together instead of a single ratio.
+- risk_tier must reflect overall business and price risk, not only volatility.
+- recommendation must match entry_timing: Consider=Now, Watch=Wait, Avoid=Avoid.
 
-Context: {financial_context}"""
+Context:
+{financial_context}"""
 
 
 def _json_type_to_schema(val: Any) -> dict[str, Any]:
@@ -117,14 +136,15 @@ def build_schema_from_format(format_dict: dict[str, Any]) -> dict[str, Any]:
 
 
 class CompanyExtractorLLM:
-    def __init__(self, api_key: str | None = None, model: str | None = None):
-        self.api_key = api_key or os.getenv("GEMINI_API_KEY")
+    def __init__(self, api_key: str | None = None, model: str | None = None, host: str | None = None):
+        self.api_key = api_key or os.getenv("OLLAMA_API_KEY")
         if not self.api_key:
             raise ValueError(
-                "Gemini API key required. Set GEMINI_API_KEY or pass api_key= to CompanyExtractorLLM(api_key=...)"
+                "Ollama API key required. Set OLLAMA_API_KEY or pass api_key= to CompanyExtractorLLM(api_key=...)"
             )
-        self.model = model or os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
-        self.client = genai.Client(api_key=self.api_key)
+        self.host = host or os.getenv("OLLAMA_HOST", "https://ollama.com")
+        self.model = model or os.getenv("OLLAMA_MODEL", "kimi-k2.5:cloud")
+        self.client = ollama.Client(host=self.host)
         self._format_dict = self._load_format()
         self.response_schema = build_schema_from_format(self._format_dict)
 
@@ -134,6 +154,43 @@ class CompanyExtractorLLM:
         with open(_FORMAT_JSON_PATH, encoding="utf-8") as f:
             return json.load(f)
 
+    def _extract_response_text(self, response: Any) -> str:
+        if isinstance(response, dict):
+            message = response.get("message") or {}
+            if isinstance(message, dict):
+                text = message.get("content") or message.get("response") or ""
+            else:
+                text = ""
+            return str(text).strip()
+
+        message = getattr(response, "message", None)
+        if message is not None:
+            text = getattr(message, "content", None) or getattr(message, "response", None) or ""
+            return str(text).strip()
+
+        text = getattr(response, "response", None) or getattr(response, "text", None) or ""
+        return str(text).strip()
+
+    def _load_json_from_text(self, text: str) -> dict[str, Any]:
+        cleaned = text.strip()
+        if not cleaned:
+            raise ValueError("Empty response from Ollama")
+
+        if cleaned.startswith("```"):
+            match = re.search(r"```(?:json)?\s*(.*?)\s*```", cleaned, re.DOTALL | re.IGNORECASE)
+            if match:
+                cleaned = match.group(1).strip()
+
+        if not cleaned.startswith(("{", "[")):
+            match = re.search(r"(\{.*\}|\[.*\])", cleaned, re.DOTALL)
+            if match:
+                cleaned = match.group(1).strip()
+
+        data = json.loads(cleaned)
+        if not isinstance(data, dict):
+            raise ValueError("Expected a JSON object from Ollama")
+        return data
+
     def _query_model(
         self,
         prompt: str,
@@ -141,19 +198,28 @@ class CompanyExtractorLLM:
         retry_delay: float = RETRY_DELAY,
         response_schema: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        schema = response_schema or self.response_schema
         for attempt in range(max_retries):
             try:
-                response = self.client.models.generate_content(
+                response = self.client.chat(
                     model=self.model,
-                    contents=prompt,
-                    config={
-                        "response_mime_type": "application/json",
-                        "response_schema": schema,
-                    },
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": "Return only valid JSON. Do not include markdown, commentary, or code fences.",
+                        },
+                        {
+                            "role": "user",
+                            "content": prompt,
+                        }
+                    ],
+                    format="json",
+                    stream=False,
+                    options={"temperature": 0},
                 )
-                text = (response.text or "").strip()
-                return json.loads(text)
+                text = self._extract_response_text(response)
+                if not text:
+                    raise ValueError("Empty response from Ollama")
+                return self._load_json_from_text(text)
             except json.JSONDecodeError as e:
                 if attempt < max_retries - 1:
                     time.sleep(retry_delay)
@@ -165,7 +231,7 @@ class CompanyExtractorLLM:
                     time.sleep(retry_delay)
                     retry_delay *= 2
                     continue
-                raise RuntimeError(f"Gemini API failed after {max_retries} attempts: {e}") from e
+                raise RuntimeError(f"Ollama API failed after {max_retries} attempts: {e}") from e
         raise RuntimeError("Unreachable")
 
     def _build_financial_context(self, raw_detail: dict[str, Any]) -> dict[str, Any]:
@@ -229,7 +295,7 @@ class CompanyExtractorLLM:
             data = self._query_model(prompt)
             return self._validate_and_clean(data, raw_detail)
         except Exception as e:
-            logger.error("Gemini extraction failed: %s", e)
+            logger.error("Ollama extraction failed: %s", e)
             return self._fallback_from_raw(raw_detail)
 
     def _validate_and_clean(self, data: dict[str, Any], raw_detail: dict[str, Any]) -> dict[str, Any]:

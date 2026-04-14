@@ -1,5 +1,21 @@
 User-agent: *
 Allow: /
+Disallow: /api/
+Disallow: /*.json$
+Disallow: /*?*version*
+Disallow: /*?*utm_*
+Crawl-delay: 1
+Request-rate: 1/10s
 
-# Dynamic sitemap: homepage, /companies, and all /company/{symbol} URLs from the API
+# Dynamic sitemap endpoint
 Sitemap: https://nepseai.shubraj.com/api/sitemap.xml
+
+# Google specific
+User-agent: Googlebot
+Allow: /
+Crawl-delay: 0
+
+# Bing specific
+User-agent: Bingbot
+Allow: /
+Crawl-delay: 1
