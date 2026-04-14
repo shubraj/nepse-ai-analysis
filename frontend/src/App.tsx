@@ -11,8 +11,10 @@ function NavItem({ to, end = false, children }: { to: string; end?: boolean; chi
       to={to}
       end={end}
       className={({ isActive }) =>
-        `text-sm font-medium transition-colors ${
-          isActive ? "text-teal-600 font-semibold" : "text-stone-600 hover:text-teal-600"
+        `rounded-full px-3 py-1.5 text-sm font-medium transition-all ${
+          isActive
+            ? "bg-teal-600 text-white shadow-sm"
+            : "text-stone-600 hover:bg-white hover:text-teal-700"
         }`
       }
     >
@@ -25,8 +27,8 @@ function App() {
   return (
     <WatchlistProvider>
       <BrowserRouter>
-        <nav className="border-b border-stone-200/80 bg-white text-stone-700 shadow-sm" role="navigation" aria-label="Main navigation">
-          <div className="mx-auto flex max-w-4xl flex-wrap items-center gap-4 px-4 py-3 sm:gap-6">
+        <nav className="sticky top-0 z-40 border-b border-stone-200/70 bg-white/80 text-stone-700 shadow-sm backdrop-blur" role="navigation" aria-label="Main navigation">
+          <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-3 px-4 py-3 sm:gap-4">
             <Link to="/" className="font-display text-lg font-semibold text-stone-900 transition-colors hover:text-teal-600">
               NEPSE Research
             </Link>
@@ -36,7 +38,7 @@ function App() {
           </div>
         </nav>
 
-        <main className="mx-auto min-h-[calc(100vh-52px)] max-w-4xl bg-stone-50/30 px-4 py-8" role="main">
+        <main className="mx-auto min-h-[calc(100vh-58px)] max-w-5xl px-4 py-8 sm:py-10" role="main">
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/companies" element={<CompanyList />} />
@@ -45,9 +47,9 @@ function App() {
           </Routes>
         </main>
 
-        <footer className="border-t border-stone-200/80 bg-white" role="contentinfo">
-          <div className="mx-auto max-w-4xl px-4 py-5">
-            <div className="rounded-xl bg-stone-50 px-4 py-3">
+        <footer className="border-t border-stone-200/80 bg-white/80 backdrop-blur" role="contentinfo">
+          <div className="mx-auto max-w-5xl px-4 py-5">
+            <div className="rounded-xl border border-stone-200/70 bg-white/80 px-4 py-3">
               <p className="text-xs leading-relaxed text-stone-500">
                 <strong className="text-stone-600">Disclaimer:</strong> This site provides AI-based analysis from historical and publicly available data for educational use only. Not professional investment advice.
               </p>

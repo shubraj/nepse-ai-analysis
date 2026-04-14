@@ -36,9 +36,9 @@ function CompanyCardRow({
           <Link
             key={c.id}
             to={`/company/${c.symbol}`}
-            className="flex flex-col rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm transition-shadow hover:border-teal-200 hover:shadow-md"
+            className="surface-card group flex flex-col rounded-2xl p-4 transition-transform duration-200 hover:-translate-y-0.5"
           >
-            <div className="font-mono text-sm font-semibold text-teal-600">{c.symbol}</div>
+            <div className="font-mono text-sm font-semibold text-teal-700">{c.symbol}</div>
             <div className="mt-0.5 text-sm font-medium text-stone-800 line-clamp-2">{c.name}</div>
             <div className="mt-1 text-xs text-stone-500">{c.sector ?? "N/A"}</div>
             <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -198,7 +198,7 @@ export function Dashboard() {
 
   return (
     <div className="space-y-10">
-      <header className="rounded-2xl border border-stone-200/80 bg-white px-6 py-8 text-center shadow-sm sm:py-10">
+      <header className="surface-card rounded-3xl px-6 py-8 text-center sm:py-10">
         <h1 className="font-display text-3xl font-bold text-stone-900 sm:text-4xl">NEPSE Research Dashboard</h1>
         <p className="mx-auto mt-3 max-w-2xl text-lg text-stone-600">
           AI-powered fundamental analysis, risk assessment, and investment recommendations for Nepal stock market companies.
@@ -215,7 +215,7 @@ export function Dashboard() {
       </header>
 
       {marketSentiment && (
-        <section className="rounded-2xl border border-stone-200/80 bg-white p-6 shadow-sm">
+        <section className="surface-card rounded-3xl p-6">
           <h2 className="font-display text-lg font-semibold text-stone-900">Market sentiment</h2>
           <p className="mt-1 text-sm text-stone-500">
             Based on recent trend across analyzed stocks - not recommendations.
@@ -271,7 +271,7 @@ export function Dashboard() {
       )}
 
       {marketPrediction && (
-        <section className="rounded-2xl border border-stone-200/80 bg-white p-6 shadow-sm">
+        <section className="surface-card rounded-3xl p-6">
           <h2 className="font-display text-lg font-semibold text-stone-900">Tomorrow&apos;s prediction</h2>
           <p className="mt-1 text-sm text-stone-500">
             AI prediction based on today&apos;s market data.
@@ -324,7 +324,7 @@ export function Dashboard() {
       )}
 
       {sectorPerformance.length > 0 && (
-        <section className="rounded-2xl border border-stone-200/80 bg-white p-6 shadow-sm">
+        <section className="surface-card rounded-3xl p-6">
           <h2 className="font-display text-lg font-semibold text-stone-900">Sector performance</h2>
           <p className="mt-1 text-sm text-stone-500">Average price change by sector (recent trend).</p>
           <div className="mt-4 overflow-x-auto">
@@ -360,7 +360,7 @@ export function Dashboard() {
       )}
 
       {watchlistSymbols.length > 0 && (
-        <section className="rounded-2xl border border-stone-200/80 bg-white p-6 shadow-sm">
+        <section className="surface-card rounded-3xl p-6">
           <h2 className="font-display text-lg font-semibold text-stone-900">Your watchlist</h2>
           <p className="mt-1 text-sm text-stone-500">Stocks you saved. Remove from watchlist on the company page.</p>
           {watchlistLoading ? (
@@ -419,7 +419,7 @@ export function Dashboard() {
       )}
 
       {SHOW_INVESTMENT_SUGGESTION && (
-        <section className="rounded-2xl border border-stone-200/80 bg-white p-6 shadow-sm">
+        <section className="surface-card rounded-3xl p-6">
           <h2 className="font-display text-lg font-semibold text-stone-900">Investment suggestion</h2>
           <p className="mt-1 text-sm text-stone-500">
             Enter the amount you want to invest (NPR, min 1,000) and your goal. We&apos;ll suggest stocks to consider.

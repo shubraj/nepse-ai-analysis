@@ -103,11 +103,11 @@ export function CompanyList() {
       </header>
 
       <div className="flex flex-wrap gap-3">
-        <div className="rounded-2xl border border-stone-200/80 bg-white px-5 py-3 shadow-sm">
+        <div className="surface-card rounded-2xl px-5 py-3">
           <div className="font-display text-xl font-semibold text-teal-600">{companies.length}</div>
           <div className="text-xs font-medium text-stone-500">Showing</div>
         </div>
-        <div className="rounded-2xl border border-stone-200/80 bg-white px-5 py-3 shadow-sm">
+        <div className="surface-card rounded-2xl px-5 py-3">
           <div className="font-display text-xl font-semibold text-teal-600">{withAnalysis}</div>
           <div className="text-xs font-medium text-stone-500">With analysis</div>
         </div>
@@ -201,7 +201,7 @@ export function CompanyList() {
               <Link
                 key={c.id}
                 to={`/company/${c.symbol}`}
-                className="flex flex-col rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm transition-shadow hover:border-teal-200 hover:shadow-md"
+                className="surface-card flex flex-col rounded-2xl p-4 transition-transform duration-200 hover:-translate-y-0.5"
               >
                 <div className="font-mono text-sm font-semibold text-teal-600">{c.symbol}</div>
                 <div className="mt-0.5 text-sm font-medium text-stone-800 line-clamp-2">{c.name}</div>

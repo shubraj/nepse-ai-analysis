@@ -117,6 +117,15 @@ const OVERVIEW_ORDER = [
   "last_traded_on",
 ];
 
+const OVERVIEW_PRIMARY = [
+  "market_price",
+  "pct_change",
+  "p_e_ratio",
+  "pbv",
+  "eps",
+  "1_year_yield",
+];
+
 function overviewLabel(key: string): string {
   return OVERVIEW_LABELS[key] ?? key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
@@ -154,17 +163,33 @@ function CurrentValuesSection({
 
   if (entries.length === 0) return null;
 
+  const primaryEntries = entries.filter(([k]) => OVERVIEW_PRIMARY.includes(k));
+  const secondaryEntries = entries.filter(([k]) => !OVERVIEW_PRIMARY.includes(k));
+
   return (
     <div className="rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm sm:p-6">
-      <h2 className="mb-4 font-display text-base font-semibold text-stone-800">Current values</h2>
-      <dl className="grid gap-x-4 gap-y-2 sm:grid-cols-2 lg:grid-cols-3">
-        {entries.map(([key, value]) => (
-          <div key={key} className="flex flex-wrap justify-between gap-x-2 sm:flex-col sm:justify-start">
-            <dt className="text-sm text-stone-500">{overviewLabel(key)}</dt>
-            <dd className="text-sm font-medium text-stone-900">{value}</dd>
+      <h2 className="mb-4 font-display text-base font-semibold text-stone-800">Key metrics</h2>
+      <dl className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        {(primaryEntries.length > 0 ? primaryEntries : entries.slice(0, 6)).map(([key, value]) => (
+          <div key={key} className="rounded-lg bg-stone-50 px-3 py-2">
+            <dt className="text-xs uppercase tracking-wide text-stone-500">{overviewLabel(key)}</dt>
+            <dd className="text-sm font-semibold text-stone-900">{value}</dd>
           </div>
         ))}
       </dl>
+      {secondaryEntries.length > 0 && (
+        <details className="mt-4 rounded-lg border border-stone-200/80 bg-white p-3">
+          <summary className="cursor-pointer text-sm font-medium text-stone-700">More market details</summary>
+          <dl className="mt-3 grid gap-2 sm:grid-cols-2">
+            {secondaryEntries.map(([key, value]) => (
+              <div key={key} className="flex flex-wrap justify-between gap-x-2 text-sm">
+                <dt className="text-stone-500">{overviewLabel(key)}</dt>
+                <dd className="font-medium text-stone-800">{value}</dd>
+              </div>
+            ))}
+          </dl>
+        </details>
+      )}
     </div>
   );
 }
@@ -176,6 +201,15 @@ function num(v: unknown): number | null {
   if (typeof v === "number" && !Number.isNaN(v)) return v;
   const n = parseFloat(String(v));
   return Number.isNaN(n) ? null : n;
+}
+
+function summarizeVerdict(text: string, maxLen = 200): string {
+  const trimmed = text.trim();
+  if (!trimmed) return "";
+  const sentenceMatch = trimmed.match(/^(.+?[.!?])\s/);
+  const firstSentence = sentenceMatch ? sentenceMatch[1] : trimmed;
+  if (firstSentence.length <= maxLen) return firstSentence;
+  return `${firstSentence.slice(0, maxLen).trim()}...`;
 }
 
 function AnalysisScoresSection({ analysis }: { analysis: Analysis }) {
@@ -226,7 +260,7 @@ function AnalysisScoresSection({ analysis }: { analysis: Analysis }) {
           <div className="flex flex-wrap items-center justify-between gap-2 border-t border-stone-100 pt-3">
             <span className="text-sm text-stone-500">Valuation</span>
             <span className="font-medium text-stone-800">
-              {valuationScore === -1 ? "Undervalued" : valuationScore === 0 ? "Fair" : "Overvalued"}
+              {valuationScore === 1 ? "Undervalued" : valuationScore === 0 ? "Fair" : "Overvalued"}
             </span>
           </div>
         )}
@@ -251,37 +285,48 @@ function AnalysisCardsSection({ analysis }: { analysis: Analysis }) {
   const shortTerm = analysis.short_term_outlook_0_to_12_months as Record<string, unknown> | undefined;
   const midTerm = analysis.mid_term_outlook_1_to_3_years as Record<string, unknown> | undefined;
   const longTerm = analysis.long_term_outlook_3_to_5_years as Record<string, unknown> | undefined;
-  const dividendProfile = analysis.dividend_profile as Record<string, unknown> | undefined;
   const risk = analysis.risk_analysis as Record<string, unknown> | undefined;
-  const portfolio = analysis.portfolio_strategy_recommendation as Record<string, unknown> | undefined;
   const finalDecision = analysis.final_decision as Record<string, unknown> | undefined;
   const whoInvest = analysis.who_should_invest as unknown[];
   const whoAvoid = analysis.who_should_avoid as unknown[];
 
-  const finalDecisionLabels: Record<string, string> = {
-    invest_now: "Entry recommendation",
-    wait_option: "Wait rationale",
-    confidence_level: "Confidence",
-    risk_tier: "Risk tier",
-    investability_label: "Investability",
-    entry_timing: "Entry timing",
+  const toText = (v: unknown): string => {
+    if (v == null || v === "") return "N/A";
+    if (Array.isArray(v)) return v.map((x) => String(x)).join(", ");
+    return String(v);
   };
 
-  const kv = (obj: Record<string, unknown> | undefined, skipNumeric = true, labelMap?: Record<string, string>) =>
-    obj && typeof obj === "object"
-      ? Object.entries(obj)
-          .filter(
-            ([k]) =>
-              !skipNumeric ||
-              (!k.endsWith("_numeric") && !k.endsWith("_pct") && !k.endsWith("_years_numeric"))
-          )
-          .map(([k, v]) => (
-            <div key={k} className="flex flex-wrap justify-between gap-x-3 gap-y-0.5 py-1.5 text-sm">
-              <span className="text-stone-500">{(labelMap && labelMap[k]) || k.replace(/_/g, " ")}</span>
-              <span className="text-stone-800">{Array.isArray(v) ? v.join(", ") : String(v ?? "N/A")}</span>
-            </div>
-          ))
-      : null;
+  const summaryItems = [
+    { label: "Recommendation", value: finalDecision?.recommendation },
+    { label: "Entry timing", value: finalDecision?.entry_timing },
+    { label: "Risk tier", value: finalDecision?.risk_tier },
+    { label: "Investability", value: finalDecision?.investability_label },
+    { label: "Confidence", value: finalDecision?.confidence_level },
+  ].filter((x) => x.value != null && x.value !== "");
+
+  const valuationItems = [
+    { label: "Valuation status", value: valuation?.valuation_status },
+    { label: "P/E view", value: valuation?.pe_interpretation },
+    { label: "P/BV view", value: valuation?.pb_interpretation },
+    { label: "Style", value: valuation?.value_or_growth_style },
+  ].filter((x) => x.value != null && x.value !== "");
+
+  const horizonItems = [
+    {
+      label: "Short term",
+      value: shortTerm?.strategy || shortTerm?.expected_price_range_change || shortTerm?.growth_probability,
+    },
+    {
+      label: "Mid term",
+      value: midTerm?.strategy || midTerm?.expected_annual_return || midTerm?.growth_probability,
+    },
+    {
+      label: "Long term",
+      value: longTerm?.investment_theme || longTerm?.expected_annual_return_best_case || longTerm?.long_term_risk,
+    },
+  ].filter((x) => x.value != null && x.value !== "");
+
+  const topRisks = (risk?.primary_risks as unknown[] | undefined) ?? [];
 
   const Card = ({
     title,
@@ -307,51 +352,62 @@ function AnalysisCardsSection({ analysis }: { analysis: Analysis }) {
   return (
     <div className="space-y-4">
       <AnalysisScoresSection analysis={analysis} />
-      {investment && (
-        <Card title="Investment snapshot">
-          <div className="space-y-0">{kv(investment)}</div>
+      {(summaryItems.length > 0 || investment) && (
+        <Card title="At a glance" highlight>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {summaryItems.map((item) => (
+              <div key={item.label} className="rounded-lg bg-white/70 px-3 py-2">
+                <div className="text-xs uppercase tracking-wide text-stone-500">{item.label}</div>
+                <div className="text-sm font-medium text-stone-800">{toText(item.value)}</div>
+              </div>
+            ))}
+            {investment?.suitability != null && investment?.suitability !== "" && (
+              <div className="rounded-lg bg-white/70 px-3 py-2 sm:col-span-2">
+                <div className="text-xs uppercase tracking-wide text-stone-500">Suitable for</div>
+                <div className="text-sm font-medium text-stone-800">{toText(investment?.suitability)}</div>
+              </div>
+            )}
+          </div>
         </Card>
       )}
-      {valuation && (
-        <Card title="Valuation analysis">
-          <div className="space-y-0">{kv(valuation)}</div>
+
+      {(valuationItems.length > 0 || horizonItems.length > 0) && (
+        <Card title="Outlook and valuation">
+          {valuationItems.length > 0 && (
+            <div className="space-y-2">
+              {valuationItems.map((item) => (
+                <div key={item.label} className="flex flex-wrap justify-between gap-2 text-sm">
+                  <span className="text-stone-500">{item.label}</span>
+                  <span className="font-medium text-stone-800">{toText(item.value)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {horizonItems.length > 0 && (
+            <div className="mt-4 space-y-2 border-t border-stone-100 pt-3">
+              {horizonItems.map((item) => (
+                <div key={item.label} className="rounded-lg bg-stone-50 px-3 py-2">
+                  <div className="text-xs uppercase tracking-wide text-stone-500">{item.label}</div>
+                  <div className="text-sm text-stone-800">{toText(item.value)}</div>
+                </div>
+              ))}
+            </div>
+          )}
         </Card>
       )}
-      {shortTerm && (
-        <Card title="Short term (0–12 months)">
-          <div className="space-y-0">{kv(shortTerm)}</div>
+
+      {topRisks.length > 0 && (
+        <Card title="Top risks">
+          <ul className="space-y-2">
+            {topRisks.slice(0, 5).map((item, i) => (
+              <li key={i} className="text-sm text-stone-700">
+                • {toText(item)}
+              </li>
+            ))}
+          </ul>
         </Card>
       )}
-      {midTerm && (
-        <Card title="Mid term (1–3 years)">
-          <div className="space-y-0">{kv(midTerm)}</div>
-        </Card>
-      )}
-      {longTerm && (
-        <Card title="Long term (3–5 years)">
-          <div className="space-y-0">{kv(longTerm)}</div>
-        </Card>
-      )}
-      {dividendProfile && (
-        <Card title="Dividend profile">
-          <div className="space-y-0">{kv(dividendProfile)}</div>
-        </Card>
-      )}
-      {risk && (
-        <Card title="Risk analysis">
-          <div className="space-y-0">{kv(risk)}</div>
-        </Card>
-      )}
-      {portfolio && (
-        <Card title="Portfolio strategy">
-          <div className="space-y-0">{kv(portfolio)}</div>
-        </Card>
-      )}
-      {finalDecision && (
-        <Card title="Final decision" highlight>
-          <div className="space-y-0">{kv(finalDecision, true, finalDecisionLabels)}</div>
-        </Card>
-      )}
+
       {(whoInvest?.length > 0 || whoAvoid?.length > 0) && (
         <Card title="Who should invest / avoid">
           <div className="space-y-3">
@@ -456,7 +512,7 @@ export function CompanyDetail() {
         </span>
       </nav>
 
-      <header className="rounded-2xl border border-stone-200/80 bg-white p-6 shadow-sm sm:p-8">
+      <header className="surface-card rounded-3xl p-6 sm:p-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2">
             <span className="inline-flex items-center rounded-lg bg-stone-100 px-3 py-2 font-mono text-base font-semibold text-stone-800">
@@ -541,7 +597,18 @@ export function CompanyDetail() {
           const summary = fin && typeof fin.summary_verdict === "string" ? fin.summary_verdict : null;
           return (
             <>
-              {summary && <p className="mt-2 text-sm text-stone-600 italic">&ldquo;{summary}&rdquo;</p>}
+              {summary && (
+                <div className="mt-3 rounded-lg border border-stone-200/80 bg-stone-50 px-3 py-2">
+                  <p className="text-xs uppercase tracking-wide text-stone-500">AI take</p>
+                  <p className="mt-1 text-sm text-stone-700">{summarizeVerdict(summary)}</p>
+                  {summary.length > 220 && (
+                    <details className="mt-2 text-xs text-stone-600">
+                      <summary className="cursor-pointer font-medium">Read full analysis note</summary>
+                      <p className="mt-2 leading-relaxed text-stone-600">{summary}</p>
+                    </details>
+                  )}
+                </div>
+              )}
               {confidence !== null && confidence <= 4 && (
                 <p className="mt-2 text-xs font-medium text-amber-700 bg-amber-50 px-2 py-1 rounded inline-block">
                   Low confidence in this analysis.
@@ -555,7 +622,7 @@ export function CompanyDetail() {
       <CurrentValuesSection sector={company.sector} overview={company.overview} />
 
       {analysisToShow && Object.keys(analysisToShow).length > 0 && (
-        <div className="rounded-2xl border border-amber-200/80 bg-amber-50/50 px-4 py-3 text-sm text-amber-900">
+        <div className="rounded-2xl border border-amber-200/80 bg-amber-50/70 px-4 py-3 text-sm text-amber-900">
           <strong>Disclaimer:</strong> This analysis is AI-generated from historical and publicly available data. It is for information only and is not professional investment advice. Consult a qualified financial advisor before investing.
         </div>
       )}
