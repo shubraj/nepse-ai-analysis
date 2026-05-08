@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../api/client";
+import { updatePageMeta, addJsonLd, createBreadcrumbSchema } from "../lib/seo";
 import type { Company } from "../types/company";
-import { getRiskTier, getRecommendation, riskTierLabel, recommendationLabel } from "../lib/screening";
-import type { RiskTier, Recommendation } from "../lib/screening";
+import { getRiskTier, getSignal, riskTierLabel, signalLabel } from "../lib/screening";
+import type { RiskTier, Signal } from "../lib/screening";
 
 function num(a: Record<string, unknown> | null | undefined, ...path: string[]): number | null {
   if (!a) return null;
@@ -112,17 +113,17 @@ function CompareTable({ companyA, companyB }: { companyA: Company; companyB: Com
       getVal: (c) => str(val(c) ?? null, "valuation_status"),
     },
     {
-      label: "Recommendation",
+      label: "Signal",
       getVal: (c) => {
-        const rec = getRecommendation(c.analysis as Record<string, unknown>);
-        if (!rec) return null;
+        const sig = getSignal(c.analysis as Record<string, unknown>);
+        if (!sig) return null;
         return (
           <span
             className={`inline-flex rounded-lg px-2 py-0.5 text-xs font-medium ${
-              rec === "consider" ? "bg-emerald-100 text-emerald-800" : rec === "avoid" ? "bg-red-100 text-red-800" : "bg-amber-100 text-amber-800"
+              sig === "buy" ? "bg-emerald-100 text-emerald-800" : sig === "sell" ? "bg-red-100 text-red-800" : "bg-amber-100 text-amber-800"
             }`}
           >
-            {recommendationLabel[rec as Recommendation]}
+            {signalLabel[sig as Signal]}
           </span>
         );
       },
@@ -244,22 +245,21 @@ export function Compare() {
     const title = "Compare NEPSE Stocks – Side-by-Side Stock Analysis | NEPSE Research";
     const description =
       "Compare two NEPSE-listed stocks side by side by price, valuation, risk, return potential, and outlook. AI-based analysis, not investment advice.";
-    document.title = title;
-    const descEl = document.querySelector('meta[name="description"]');
-    if (descEl) descEl.setAttribute("content", description);
-    const ogTitle = document.querySelector('meta[property="og:title"]');
-    if (ogTitle) ogTitle.setAttribute("content", title);
-    const ogDesc = document.querySelector('meta[property="og:description"]');
-    if (ogDesc) ogDesc.setAttribute("content", description);
-    const twTitle = document.querySelector('meta[name="twitter:title"]');
-    if (twTitle) twTitle.setAttribute("content", title);
-    const twDesc = document.querySelector('meta[name="twitter:description"]');
-    if (twDesc) twDesc.setAttribute("content", description);
-    const canonical = document.querySelector('link[rel="canonical"]');
-    const url = `${window.location.origin}/compare`;
-    if (canonical) canonical.setAttribute("href", url);
-    const ogUrl = document.querySelector('meta[property="og:url"]');
-    if (ogUrl) ogUrl.setAttribute("content", url);
+
+    updatePageMeta({
+      title,
+      description,
+      keywords: "NEPSE stock comparison, compare Nepal stocks, stock analysis comparison, NEPSE side by side",
+      url: `${window.location.origin}/compare`,
+      canonicalUrl: `${window.location.origin}/compare`,
+    });
+
+    addJsonLd(
+      createBreadcrumbSchema([
+        { name: "Home", url: `${window.location.origin}/` },
+        { name: "Compare", url: `${window.location.origin}/compare` },
+      ])
+    );
   }, []);
 
   useEffect(() => {

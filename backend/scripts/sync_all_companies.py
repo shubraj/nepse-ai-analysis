@@ -2,8 +2,10 @@
 """Sync company list + detail and optional AI analysis to DB. Run: python scripts/sync_all_companies.py [--no-analysis] [--limit N] [--workers N]."""
 
 import argparse
+import logging
 import sys
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
@@ -18,15 +20,44 @@ from models import Company, CompanyAnalysis  # noqa: F401 - register mappers
 from services.extractor_service import ExtractorService
 
 _print_lock = threading.Lock()
+_LOG_DIR = _backend_dir / "logs"
+_LOG_DIR.mkdir(exist_ok=True, parents=True)
+
+
+def _setup_logger() -> logging.Logger:
+    logger = logging.getLogger("sync_all_companies")
+    if logger.handlers:
+        return logger
+    logger.setLevel(logging.INFO)
+    logger.propagate = False
+
+    formatter = logging.Formatter("%(asctime)s | %(levelname)s | %(message)s")
+
+    console = logging.StreamHandler(sys.stdout)
+    console.setFormatter(formatter)
+    logger.addHandler(console)
+
+    file_handler = logging.FileHandler(_LOG_DIR / "sync_all_companies.log", encoding="utf-8")
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
+    return logger
+
+
+LOGGER = _setup_logger()
 
 
 def _process_one(symbol: str, run_analysis: bool) -> tuple[str, str | None]:
     """Fetch detail and optionally run analysis for one symbol."""
     db = SessionLocal()
+    started_at = time.monotonic()
     try:
+        LOGGER.info("Start %s", symbol)
         ExtractorService.fetch_and_save(symbol, db, run_analysis=run_analysis)
+        elapsed = time.monotonic() - started_at
+        LOGGER.info("Done %s in %.1fs", symbol, elapsed)
         return (symbol, None)
     except Exception as e:
+        LOGGER.exception("Failed %s", symbol)
         return (symbol, str(e))
     finally:
         db.close()
@@ -49,13 +80,14 @@ def main() -> None:
     symbols = [(item.get("symbol") or "").strip() for item in company_list]
     symbols = [s for s in symbols if s]
 
-    print(f"Processing {len(symbols)} companies (workers={args.workers}).")
-    print(f"Mode: {'detail only' if args.no_analysis else 'detail + AI analysis'}\n")
+    LOGGER.info("Processing %s companies (workers=%s)", len(symbols), args.workers)
+    LOGGER.info("Mode: %s", "detail only" if args.no_analysis else "detail + AI analysis")
 
     run_analysis = not args.no_analysis
     ok = 0
     err = 0
     done = 0
+    started_at = time.monotonic()
 
     with ThreadPoolExecutor(max_workers=args.workers) as executor:
         futures = {executor.submit(_process_one, symbol, run_analysis): symbol for symbol in symbols}
@@ -65,19 +97,20 @@ def main() -> None:
             if error is None:
                 ok += 1
                 with _print_lock:
-                    print(f"  [{done}/{len(symbols)}] {symbol} OK")
+                    LOGGER.info("[%s/%s] %s OK", done, len(symbols), symbol)
             else:
                 err += 1
                 with _print_lock:
-                    print(f"  [{done}/{len(symbols)}] {symbol} FAILED: {error}")
+                    LOGGER.error("[%s/%s] %s FAILED: %s", done, len(symbols), symbol, error)
 
-    print(f"\nDone. OK: {ok}, Failed: {err}")
+    total_elapsed = time.monotonic() - started_at
+    LOGGER.info("Done. OK: %s, Failed: %s, Elapsed: %.1fs", ok, err, total_elapsed)
 
     try:
         invalidate_all()
-        print("API cache invalidated.")
+        LOGGER.info("API cache invalidated")
     except Exception as e:
-        print(f"Warning: could not invalidate cache: {e}", file=sys.stderr)
+        LOGGER.warning("Could not invalidate cache: %s", e)
 
 
 if __name__ == "__main__":

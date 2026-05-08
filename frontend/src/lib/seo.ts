@@ -22,18 +22,15 @@ export interface BreadcrumbItem {
  * Update page meta tags dynamically
  */
 export function updatePageMeta(meta: PageMeta) {
-  // Update title
   document.title = meta.title;
 
-  // Update meta description
+  updateMetaTag('name', 'title', meta.title);
   updateMetaTag('name', 'description', meta.description);
 
-  // Update keywords
   if (meta.keywords) {
     updateMetaTag('name', 'keywords', meta.keywords);
   }
 
-  // Update Open Graph
   updateMetaTag('property', 'og:title', meta.title);
   updateMetaTag('property', 'og:description', meta.description);
   if (meta.image) {
@@ -41,24 +38,17 @@ export function updatePageMeta(meta: PageMeta) {
     updateMetaTag('property', 'og:image:alt', meta.imageAlt || meta.title);
   }
 
-  // Update Twitter Card
   updateMetaTag('name', 'twitter:title', meta.title);
   updateMetaTag('name', 'twitter:description', meta.description);
   if (meta.image) {
     updateMetaTag('name', 'twitter:image', meta.image);
   }
 
-  // Update canonical URL
   const canonicalUrl = meta.canonicalUrl || meta.url || window.location.href;
   updateCanonicalLink(canonicalUrl);
-
-  // Update og:url
   updateMetaTag('property', 'og:url', canonicalUrl);
 }
 
-/**
- * Update or create a meta tag
- */
 function updateMetaTag(type: 'name' | 'property', key: string, value: string) {
   let el = document.querySelector(`meta[${type}="${key}"]`) as HTMLMetaElement | null;
   if (!el) {
@@ -69,9 +59,6 @@ function updateMetaTag(type: 'name' | 'property', key: string, value: string) {
   el.content = value;
 }
 
-/**
- * Update canonical link
- */
 function updateCanonicalLink(url: string) {
   let el = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
   if (!el) {
@@ -82,23 +69,18 @@ function updateCanonicalLink(url: string) {
   el.href = url;
 }
 
-/**
- * Add JSON-LD structured data to page
- */
 export function addJsonLd(data: Record<string, unknown>) {
-  let script = document.querySelector('script[data-seo="jsonld"]') as HTMLScriptElement | null;
+  const id = `seo-jsonld-${typeof data['@type'] === 'string' ? data['@type'] : 'generic'}`;
+  let script = document.querySelector(`script[data-seo="${id}"]`) as HTMLScriptElement | null;
   if (!script) {
     script = document.createElement('script');
     script.type = 'application/ld+json';
-    script.setAttribute('data-seo', 'jsonld');
+    script.setAttribute('data-seo', id);
     document.head.appendChild(script);
   }
   script.textContent = JSON.stringify(data);
 }
 
-/**
- * Create Organization schema
- */
 export function createOrganizationSchema(overrides?: Record<string, unknown>) {
   return {
     '@context': 'https://schema.org',
@@ -107,15 +89,13 @@ export function createOrganizationSchema(overrides?: Record<string, unknown>) {
     url: 'https://nepseai.shubraj.com',
     logo: 'https://nepseai.shubraj.com/logo.png',
     description:
-      'Free NEPSE stock AI analysis and Nepal stock market insights. AI-powered fundamental and technical analysis, screener, valuations for NEPSE.',
-    sameAs: ['https://www.facebook.com/nepseResearch', 'https://twitter.com/nepseResearch'],
+      'Free AI-powered NEPSE stock analysis platform. Get buy/hold/sell signals, fundamental analysis, risk tiers, valuations and investment recommendations for Nepal stock market companies.',
+    sameAs: ['https://twitter.com/nepseResearch'],
+    areaServed: { '@type': 'Country', name: 'Nepal' },
     ...overrides,
   };
 }
 
-/**
- * Create BreadcrumbList schema
- */
 export function createBreadcrumbSchema(items: BreadcrumbItem[]) {
   return {
     '@context': 'https://schema.org',
@@ -129,9 +109,6 @@ export function createBreadcrumbSchema(items: BreadcrumbItem[]) {
   };
 }
 
-/**
- * Create FAQPage schema
- */
 export function createFaqSchema(items: Array<{ question: string; answer: string }>) {
   return {
     '@context': 'https://schema.org',
@@ -147,9 +124,6 @@ export function createFaqSchema(items: Array<{ question: string; answer: string 
   };
 }
 
-/**
- * Create Article schema for company analysis pages
- */
 export function createArticleSchema(data: {
   headline: string;
   description: string;
@@ -170,29 +144,64 @@ export function createArticleSchema(data: {
     author: {
       '@type': 'Organization',
       name: data.author || 'NEPSE Research',
+      url: 'https://nepseai.shubraj.com',
     },
     keywords: data.keywords,
+    publisher: {
+      '@type': 'Organization',
+      name: 'NEPSE Research',
+      url: 'https://nepseai.shubraj.com',
+    },
   };
 }
 
-/**
- * Create LocalBusiness schema (optional, if NEPSE Research has a physical location)
- */
-export function createLocalBusinessSchema(overrides?: Record<string, unknown>) {
+export function createStockSchema(data: {
+  symbol: string;
+  name: string;
+  sector?: string;
+  description: string;
+  url: string;
+  image?: string;
+}) {
   return {
     '@context': 'https://schema.org',
-    '@type': 'LocalBusiness',
-    name: 'NEPSE Research',
-    image: 'https://nepseai.shubraj.com/logo.png',
-    description: 'AI-powered NEPSE stock analysis and Nepal stock market research',
-    url: 'https://nepseai.shubraj.com',
-    telephone: '+977-000000000',
-    address: {
-      '@type': 'PostalAddress',
-      addressCountry: 'NP',
-      addressLocality: 'Kathmandu',
-      addressRegion: 'Kathmandu',
+    '@type': 'FinancialProduct',
+    name: `${data.symbol}: ${data.name} - NEPSE Stock`,
+    description: data.description,
+    url: data.url,
+    image: data.image || 'https://nepseai.shubraj.com/og-image.png',
+    category: data.sector || 'Nepal Stock',
+    provider: {
+      '@type': 'Organization',
+      name: 'NEPSE Research',
+      url: 'https://nepseai.shubraj.com',
     },
-    ...overrides,
+    areaServed: { '@type': 'Country', name: 'Nepal' },
+    subjectOf: {
+      '@type': 'FinancialProductCategory',
+      name: 'NEPSE Listed Stocks',
+      description: 'Stocks listed on the Nepal Stock Exchange (NEPSE)',
+    },
+  };
+}
+
+export function createWebPageSchema(data: {
+  title: string;
+  description: string;
+  url: string;
+  image?: string;
+}) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'WebPage',
+    name: data.title,
+    description: data.description,
+    url: data.url,
+    image: data.image || 'https://nepseai.shubraj.com/og-image.png',
+    publisher: {
+      '@type': 'Organization',
+      name: 'NEPSE Research',
+      url: 'https://nepseai.shubraj.com',
+    },
   };
 }

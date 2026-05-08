@@ -1,6 +1,7 @@
 """Fetch + extract and save to DB."""
 
 from datetime import datetime, timezone
+import logging
 
 from core.client import MerolaganiClient
 from core.company_extractor_llm import CompanyExtractorLLM
@@ -8,6 +9,9 @@ from sqlalchemy.orm import Session
 
 from models.company import Company
 from models.company_analysis import CompanyAnalysis
+
+
+logger = logging.getLogger(__name__)
 
 
 def _utcnow() -> datetime:
@@ -54,6 +58,7 @@ class ExtractorService:
         if analysis is not None:
             _append_analysis_record(db, company.id, analysis)
             db.commit()
+
         return company
 
 

@@ -73,6 +73,11 @@ export const api = {
     request<import("../types/company").MarketSentimentResponse>("/market-sentiment"),
   getSectorPerformance: () =>
     request<import("../types/company").SectorPerformanceResponse>("/sector-performance"),
-  getMarketPrediction: () =>
-    request<import("../types/company").MarketPredictionResponse>("/market-prediction"),
+  recordPageView: (page: string) =>
+    request<{ ok: boolean }>("/pageview", {
+      method: "POST",
+      body: JSON.stringify({ page }),
+    }),
+  getPageViewCount: () =>
+    request<import("../types/company").PageViewCountResponse>("/pageview/count"),
 };

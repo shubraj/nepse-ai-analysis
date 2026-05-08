@@ -66,11 +66,11 @@ def recommendation_from_entry_timing(entry_timing: str | None) -> str | None:
         return None
     e = entry_timing.lower()
     if e == "now":
-        return "Consider"
+        return "Buy"
     if e == "wait":
-        return "Watch"
+        return "Hold"
     if e == "avoid":
-        return "Avoid"
+        return "Sell"
     return None
 
 

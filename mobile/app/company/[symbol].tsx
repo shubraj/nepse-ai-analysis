@@ -16,11 +16,11 @@ import type {
 } from "../../src/types/company";
 import {
   getRiskTier,
-  getRecommendation,
+  getSignal,
   riskTierLabel,
-  recommendationLabel,
+  signalLabel,
 } from "../../src/lib/screening";
-import type { RiskTier, Recommendation } from "../../src/lib/screening";
+import type { RiskTier, Signal } from "../../src/lib/screening";
 
 function formatAnalysisDate(analyzed_at: string) {
   return new Date(analyzed_at).toLocaleString(undefined, {
@@ -295,8 +295,8 @@ export default function CompanyDetailScreen() {
   }
 
   const risk = analysisToShow && getRiskTier(analysisToShow as Record<string, unknown>);
-  const rec = analysisToShow && getRecommendation(analysisToShow as Record<string, unknown>);
-  const recStyle = rec === "consider" ? styles.badgeGreen : rec === "avoid" ? styles.badgeRed : styles.badgeAmber;
+  const sig = analysisToShow && getSignal(analysisToShow as Record<string, unknown>);
+  const sigStyle = sig === "buy" ? styles.badgeGreen : sig === "sell" ? styles.badgeRed : styles.badgeAmber;
   const riskStyle = risk === "low" ? styles.badgeSky : risk === "high" ? styles.badgeRed : styles.badgeAmber;
 
   return (
@@ -307,7 +307,7 @@ export default function CompanyDetailScreen() {
             <Text style={styles.symbolText}>{company.symbol}</Text>
           </View>
           <View style={styles.badges}>
-            {rec && <View style={[styles.badge, recStyle]}><Text style={styles.badgeText}>{recommendationLabel[rec as Recommendation]}</Text></View>}
+            {sig && <View style={[styles.badge, sigStyle]}><Text style={styles.badgeText}>{signalLabel[sig as Signal]}</Text></View>}
             {risk && <View style={[styles.badge, riskStyle]}><Text style={styles.badgeText}>{riskTierLabel[risk as RiskTier]}</Text></View>}
           </View>
         </View>

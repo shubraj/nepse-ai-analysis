@@ -15,11 +15,9 @@ from models.company import Company
 from models.company_analysis import CompanyAnalysis
 from schemas.company import CompanyResponse
 from schemas.company_analysis import CompanyAnalysisListItem, CompanyAnalysisResponse
-from schemas.market_prediction import MarketPredictionResponse
 from schemas.market_sentiment import MarketSentimentResponse
 from schemas.sector_performance import SectorPerformanceItem, SectorPerformanceResponse
 from schemas.suggestions import SuggestionItem, SuggestionsResponse
-from services.market_prediction import get_or_create_prediction
 from services.market_sentiment import get_market_sentiment
 from services.sector_performance import get_sector_performance
 from services.suggestions import get_suggestions as get_suggestions_service
@@ -296,17 +294,68 @@ def get_company_analysis(symbol: str, analysis_id: int, db: Session = Depends(ge
     return result
 
 
-MARKET_PREDICTION_CACHE_TTL = 3600  # 1 hour
+@router.post("/pageview")
+async def record_pageview(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Record a page view. Deduplicates same visitor+page within 15 min."""
+    import hashlib
+    from datetime import datetime, timedelta, timezone
+
+    from models.page_view import PageView
+
+    body = {}
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+
+    page = str(body.get("page") or "/").strip()
+    if not page:
+        return {"ok": True}
+
+    ip = _client_ip(request)
+    ua = request.headers.get("user-agent", "")
+    raw = f"{ip}|{ua}"
+    visitor_hash = hashlib.sha256(raw.encode()).hexdigest()
+
+    cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=15)
+    existing = (
+        db.query(PageView)
+        .filter(
+            PageView.visitor_hash == visitor_hash,
+            PageView.page == page,
+            PageView.viewed_at > cutoff,
+        )
+        .first()
+    )
+    if existing:
+        return {"ok": True}
+
+    db.add(PageView(page=page, visitor_hash=visitor_hash))
+    db.commit()
+    return {"ok": True}
 
 
-@router.get("/market-prediction", response_model=MarketPredictionResponse)
-def get_market_prediction(db: Session = Depends(get_db)):
-    """Get AI prediction for tomorrow's market movement."""
-    cache_key = f"{CACHE_KEY_PREFIX}market-prediction"
+@router.get("/pageview/count")
+def get_pageview_count(
+    db: Session = Depends(get_db),
+    page: str | None = Query(None, description="Filter by page path"),
+):
+    """Get total unique page views (optionally filter by page)."""
+    cache_key = f"{CACHE_KEY_PREFIX}pageview:count:{page or 'all'}"
     cached = cache_get(cache_key)
     if cached is not None:
-        return MarketPredictionResponse(**cached)
+        return cached
 
-    result = get_or_create_prediction(db)
-    cache_set(cache_key, result, ttl=MARKET_PREDICTION_CACHE_TTL)
-    return MarketPredictionResponse(**result)
+    from models.page_view import PageView
+
+    query = db.query(PageView)
+    if page:
+        query = query.filter(PageView.page == page)
+    total = query.count()
+
+    result = {"total": total}
+    cache_set(cache_key, result, ttl=300)
+    return result

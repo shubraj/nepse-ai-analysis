@@ -4,6 +4,7 @@
 import json
 import logging
 import os
+import random
 import re
 import time
 from logging.handlers import RotatingFileHandler
@@ -47,8 +48,10 @@ def _env_float(key: str, default: float) -> float:
         return default
 
 
-MAX_RETRIES = _env_int("MAX_RETRIES", 3)
-RETRY_DELAY = _env_float("RETRY_DELAY", 1.0)
+MAX_RETRIES = _env_int("LLM_MAX_RETRIES", 5)
+RETRY_DELAY_BASE = _env_float("LLM_RETRY_DELAY", 2.0)
+RETRY_MAX_DELAY = _env_float("LLM_RETRY_MAX_DELAY", 60.0)
+REQUEST_TIMEOUT = _env_float("LLM_REQUEST_TIMEOUT", 120.0)
 
 LOG_DIR = _ROOT_DIR / "logs"
 LOG_DIR.mkdir(exist_ok=True, parents=True)
@@ -64,41 +67,156 @@ if not logger.handlers:
     logger.addHandler(fh)
     logger.addHandler(sh)
 
+
+def _retry_with_backoff(
+    fn,
+    *args,
+    max_retries: int = MAX_RETRIES,
+    base_delay: float = RETRY_DELAY_BASE,
+    max_delay: float = RETRY_MAX_DELAY,
+    timeout: float = REQUEST_TIMEOUT,
+    **kwargs,
+) -> Any:
+    """Call fn with exponential backoff + jitter. Handles rate limits, timeouts, and transient failures."""
+    last_exception: Exception | None = None
+    consecutive_rate_limits = 0
+
+    for attempt in range(max_retries):
+        try:
+            return fn(*args, **kwargs)
+        except json.JSONDecodeError as e:
+            last_exception = e
+            logger.warning("LLM JSON parse failed (attempt %d/%d): %s", attempt + 1, max_retries, e)
+        except Exception as e:
+            last_exception = e
+            msg = str(e).lower()
+
+            if any(kw in msg for kw in ("rate limit", "429", "too many requests")):
+                consecutive_rate_limits += 1
+                delay = base_delay * (2 ** consecutive_rate_limits)
+                delay = min(delay, max(max_delay, 120.0))
+                logger.warning("LLM rate limited (attempt %d/%d), waiting %.1fs", attempt + 1, max_retries, delay)
+            elif any(kw in msg for kw in ("timeout", "timed out", "connection")):
+                delay = base_delay * (2 ** attempt)
+                delay = min(delay + random.uniform(0, base_delay), max_delay)
+                logger.warning("LLM connection/timeout (attempt %d/%d): %s, retrying in %.1fs", attempt + 1, max_retries, e, delay)
+            elif any(kw in msg for kw in ("server error", "500", "502", "503", "504")):
+                delay = base_delay * (2 ** attempt)
+                delay = min(delay + random.uniform(0, delay * 0.3), max_delay)
+                logger.warning("LLM server error (attempt %d/%d): %s, retrying in %.1fs", attempt + 1, max_retries, e, delay)
+            else:
+                delay = base_delay * (2 ** attempt)
+                delay = min(delay + random.uniform(0, delay * 0.5), max_delay)
+                logger.warning("LLM error (attempt %d/%d): %s, retrying in %.1fs", attempt + 1, max_retries, e, delay)
+
+        if attempt < max_retries - 1:
+            time.sleep(delay)
+
+    if last_exception:
+        raise RuntimeError(f"LLM request failed after {max_retries} attempts: {last_exception}") from last_exception
+    raise RuntimeError("Unreachable")
+
+
 _EXTRACTION_PROMPT = """You are a NEPSE equity analyst generating one structured JSON record for a listed Nepal company.
 
-Use only the provided context. Do not invent ratios, future events, or company facts. If a field cannot be supported by the context, use null or an empty list.
+Use ONLY the provided context. Do not invent ratios, future events, or company facts. If a field cannot be supported by the context, use null or an empty list.
 
-Scoring guidance:
-- investment_quality_score_numeric: overall fundamental quality from 1 to 10
-- risk_score_numeric: downside and business risk from 1 to 10
-- return_potential_numeric: expected upside potential from 1 to 10
-- valuation_score_numeric: -1 overvalued, 0 fair, 1 undervalued
-- volatility_score_numeric: share-price volatility / instability from 1 to 10
-- confidence_score_numeric: confidence in the final decision from 1 to 10
-- entry_timing: Now only if the setup is attractive today; Wait if interesting but needs patience; Avoid if quality or risk are poor
+## Nepal Market Reference Ranges (use for calibration):
 
-Make the output conservative and evidence-based. Favor lower confidence when data is thin. Use the Nepal stock market context, but keep the output fully machine-readable.
+### Banking Sector (Commercial / Development):
+- P/E 15-30 is typical; below 15 = potentially undervalued, above 30 = expensive
+- P/BV 0.8-2.5 typical; below 1 = discounted, above 3 = expensive
+- Good banks have consistent dividends (>=15% bonus/cash dividend history)
+- Risk: high NPLs, regulatory changes, interest rate volatility
 
-Required fields:
-- ticker_symbol, company_name, sector, market_position
-- investment_snapshot: investment_quality_score(text), investment_quality_score_numeric(1-10), risk_level(text), risk_score_numeric(1-10), return_potential(text), return_potential_numeric(1-10), suitability(text)
-- valuation_analysis: valuation_status(Undervalued/Fairly/Overvalued), valuation_score_numeric(-1/0/1), pe_interpretation, pb_interpretation, value_or_growth_style
-- short_term_outlook_0_to_12_months: growth_probability(text), growth_probability_numeric(1-5), expected_price_range_change, expected_return_low_pct, expected_return_high_pct, key_triggers[], strategy
-- mid_term_outlook_1_to_3_years: growth_probability_numeric(1-5), expected_annual_return(text), expected_annual_return_min_pct, expected_annual_return_max_pct, key_drivers[], strategy
-- long_term_outlook_3_to_5_years: growth_probability_numeric(1-5), expected_annual_return_best_case(text), expected_annual_return_best_case_min_pct, expected_annual_return_best_case_max_pct, investment_theme, long_term_risk, long_term_risk_score_numeric(1-10)
-- dividend_profile: dividend_consistency(text), dividend_consistency_score_numeric(1-10), income_reliability(text), income_reliability_score_numeric(1-10), suitable_for_income_investors(boolean)
-- financial_strength_monitoring: eps_trend, capital_strength, asset_quality, liquidity_position
-- risk_analysis: primary_risks[3-5], volatility_level(text), volatility_score_numeric(1-10)
-- portfolio_strategy_recommendation: allocation_size(text), allocation_max_pct_numeric, holding_period(text), holding_period_years_numeric, buy_strategy
-- who_should_invest[2-4], who_should_avoid[2-4]
-- final_decision: invest_now(text), invest_score_numeric(0/0.5/1), wait_option(text), confidence_level(text), confidence_score_numeric(1-10), risk_tier(Low/Moderate/High), investability_label(High/Moderate/Low), entry_timing(Now/Wait/Avoid), recommendation(Consider/Watch/Avoid), summary_verdict
+### Insurance Sector:
+- P/E 20-35 typical; rapid premium growth justifies higher multiples
+- Low dividend consistency is normal for growing insurers
+- Risk: underwriting losses, catastrophic events, regulatory
 
-Decision rubric:
-- High quality, strong earnings/dividend trend, attractive valuation, and manageable risk support Consider/Now.
-- Weak liquidity, weak profitability signals, or high volatility should push toward Watch/Avoid.
-- Use valuation, dividend profile, short-term catalyst strength, and long-term durability together instead of a single ratio.
-- risk_tier must reflect overall business and price risk, not only volatility.
-- recommendation must match entry_timing: Consider=Now, Watch=Wait, Avoid=Avoid.
+### Hydropower Sector:
+- P/E 10-20 typical for operational plants; under-construction may have no P/E
+- P/BV 0.5-1.5 typical
+- Dividend may be irregular due to seasonal revenue
+- Risk: hydrology risk, PPA terms, construction delays
+
+### Finance / Microfinance:
+- P/E 10-25 typical; P/BV 1-3 typical
+- Higher credit risk than commercial banks
+- Risk: NPL spikes, liquidity crunches, regulation on spreads
+
+### Manufacturing / Trading / Others:
+- Wide P/E ranges (8-30+), heavily dependent on industry-specific cycles
+- Score conservatively when data is sparse
+
+## Scoring Rubric (1-10 scale):
+
+investment_quality_score_numeric:
+- 9-10: Market leader, consistent earnings, strong dividends, attractive valuation
+- 7-8: Strong fundamentals, one or two minor weaknesses
+- 5-6: Average for sector, mixed signals
+- 3-4: Below-average fundamentals, multiple concerns
+- 1-2: Poor quality, speculative, inconsistent performance
+
+risk_score_numeric (higher = riskier):
+- 1-3: Very stable, low debt, sector leader, consistent history
+- 4-6: Sector-average risk, normal business cycle exposure
+- 7-8: Above-average risk, volatile earnings, competitive pressure
+- 9-10: Highly speculative, distressed, regulatory trouble
+
+return_potential_numeric:
+- Derive from valuation gap + dividend yield + sector growth
+- Undervalued + strong sector = 7-9; Fairly valued + moderate growth = 4-6; Overvalued = 1-3
+
+confidence_score_numeric:
+- 8-10: Rich data, clear trends, multiple years of history
+- 5-7: Adequate data with some gaps or mixed signals
+- 1-4: Sparse data, contradictory signals
+
+## Cross-field consistency rules:
+
+1. dividend_consistency_score <= 3 -> suitable_for_income_investors MUST be false
+2. risk_score >= 7 -> recommendation should be Avoid
+3. valuation_status = Undervalued AND quality >= 6 -> return_potential >= 6
+4. valuation_status = Overvalued -> return_potential <= 4
+5. No dividend history -> dividend_consistency = 1, income_reliability = 1
+6. Bank with P/E > 35 should NOT be Undervalued without exceptional growth
+7. entry_timing = Now only if quality >= 5 AND risk <= 6 AND valuation at least Fair
+8. High dividend consistency should mean lower volatility
+
+## Required JSON output:
+
+Return ONLY a JSON object with these top-level fields (use null for missing fields):
+
+ticker_symbol, company_name, sector, market_position (all strings)
+
+investment_snapshot (object): investment_quality_score(text), investment_quality_score_numeric(1-10), risk_level(text), risk_score_numeric(1-10), return_potential(text), return_potential_numeric(1-10), suitability(text)
+
+valuation_analysis (object): valuation_status(Undervalued/Fairly Valued/Overvalued), valuation_score_numeric(-1/0/1), pe_interpretation(text), pb_interpretation(text), value_or_growth_style(Value/Growth/Blend)
+
+short_term_outlook_0_to_12_months (object): growth_probability(text), growth_probability_numeric(1-5), expected_price_range_change(text), expected_return_low_pct(number), expected_return_high_pct(number), key_triggers(list of strings), strategy(text)
+
+mid_term_outlook_1_to_3_years (object): growth_probability(text), growth_probability_numeric(1-5), expected_annual_return(text), expected_annual_return_min_pct(number), expected_annual_return_max_pct(number), key_drivers(list of strings), strategy(text)
+
+long_term_outlook_3_to_5_years (object): growth_probability(text), growth_probability_numeric(1-5), expected_annual_return_best_case(text), expected_annual_return_best_case_min_pct(number), expected_annual_return_best_case_max_pct(number), investment_theme(text), long_term_risk(text), long_term_risk_score_numeric(1-10)
+
+dividend_profile (object): dividend_consistency(text), dividend_consistency_score_numeric(1-10), income_reliability(text), income_reliability_score_numeric(1-10), suitable_for_income_investors(boolean)
+
+financial_strength_monitoring (object): eps_trend(text), capital_strength(text), asset_quality(text), liquidity_position(text)
+
+risk_analysis (object): primary_risks(list of strings), volatility_level(text), volatility_score_numeric(1-10)
+
+portfolio_strategy_recommendation (object): allocation_size(text), allocation_max_pct_numeric(0-100), holding_period(text), holding_period_years_numeric(0-20), buy_strategy(text)
+
+who_should_invest (list of strings), who_should_avoid (list of strings)
+
+final_decision (object): invest_now(Yes/Conditional/No), invest_score_numeric(0/0.5/1), wait_option(text), confidence_level(text), confidence_score_numeric(1-10), risk_tier(Low/Moderate/High), investability_label(High/Moderate/Low), entry_timing(Now/Wait/Avoid), recommendation(Consider/Watch/Avoid), summary_verdict(text)
+
+Decision rule:
+- High quality + attractive valuation + manageable risk -> Consider/Now
+- Average quality or unclear data -> Watch/Wait
+- Poor quality, high risk, or clearly overvalued -> Avoid/Avoid
+- When data is thin, lean toward Watch and lower confidence
 
 Context:
 {financial_context}"""
@@ -147,6 +265,32 @@ class CompanyExtractorLLM:
         self.client = ollama.Client(host=self.host)
         self._format_dict = self._load_format()
         self.response_schema = build_schema_from_format(self._format_dict)
+        self._circuit_open = False
+        self._circuit_until = 0.0
+        self._circuit_failures = 0
+        self._circuit_threshold = _env_int("LLM_CIRCUIT_BREAKER_FAILURES", 8)
+        self._circuit_cooldown = _env_float("LLM_CIRCUIT_COOLDOWN", 30.0)
+
+    def _check_circuit(self) -> None:
+        if self._circuit_open:
+            if time.time() > self._circuit_until:
+                self._circuit_open = False
+                self._circuit_failures = 0
+                logger.info("Circuit breaker reset")
+            else:
+                remaining = int(self._circuit_until - time.time())
+                raise RuntimeError(f"LLM circuit breaker open, retry in {remaining}s")
+
+    def _record_failure(self) -> None:
+        self._circuit_failures += 1
+        if self._circuit_failures >= self._circuit_threshold:
+            self._circuit_open = True
+            self._circuit_until = time.time() + self._circuit_cooldown
+            logger.warning("Circuit breaker opened after %d consecutive failures. Cooling down for %.0fs", self._circuit_failures, self._circuit_cooldown)
+
+    def _record_success(self) -> None:
+        if self._circuit_failures > 0:
+            self._circuit_failures = max(0, self._circuit_failures - 1)
 
     def _load_format(self) -> dict[str, Any]:
         if not _FORMAT_JSON_PATH.exists():
@@ -191,53 +335,44 @@ class CompanyExtractorLLM:
             raise ValueError("Expected a JSON object from Ollama")
         return data
 
-    def _query_model(
-        self,
-        prompt: str,
-        max_retries: int = MAX_RETRIES,
-        retry_delay: float = RETRY_DELAY,
-        response_schema: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
-        for attempt in range(max_retries):
-            try:
-                response = self.client.chat(
-                    model=self.model,
-                    messages=[
-                        {
-                            "role": "system",
-                            "content": "Return only valid JSON. Do not include markdown, commentary, or code fences.",
-                        },
-                        {
-                            "role": "user",
-                            "content": prompt,
-                        }
-                    ],
-                    format="json",
-                    stream=False,
-                    options={"temperature": 0},
-                )
-                text = self._extract_response_text(response)
-                if not text:
-                    raise ValueError("Empty response from Ollama")
-                return self._load_json_from_text(text)
-            except json.JSONDecodeError as e:
-                if attempt < max_retries - 1:
-                    time.sleep(retry_delay)
-                    retry_delay *= 2
-                    continue
-                raise RuntimeError(f"JSON parse failed after {max_retries} attempts: {e}") from e
-            except Exception as e:
-                if attempt < max_retries - 1:
-                    time.sleep(retry_delay)
-                    retry_delay *= 2
-                    continue
-                raise RuntimeError(f"Ollama API failed after {max_retries} attempts: {e}") from e
-        raise RuntimeError("Unreachable")
+    def _call_ollama(self, prompt: str) -> dict[str, Any]:
+        self._check_circuit()
+        response = self.client.chat(
+            model=self.model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": "Return only valid JSON. Do not include markdown, commentary, or code fences. Be conservative and evidence-based.",
+                },
+                {
+                    "role": "user",
+                    "content": prompt,
+                }
+            ],
+            format="json",
+            stream=False,
+            options={"temperature": 0},
+        )
+        text = self._extract_response_text(response)
+        if not text:
+            raise ValueError("Empty response from Ollama")
+        return self._load_json_from_text(text)
+
+    def _query_model(self, prompt: str) -> dict[str, Any]:
+        try:
+            result = _retry_with_backoff(self._call_ollama, prompt)
+            self._record_success()
+            return result
+        except Exception:
+            self._record_failure()
+            raise
 
     def _build_financial_context(self, raw_detail: dict[str, Any]) -> dict[str, Any]:
         about = raw_detail.get("about") or {}
         overview = raw_detail.get("overview") or {}
         dividends = raw_detail.get("dividend_history") or []
+        bonus = raw_detail.get("bonus_history") or []
+        right = raw_detail.get("right_share_history") or []
         symbol = (raw_detail.get("symbol") or "").upper()
 
         def _num(s: Any) -> float | None:
@@ -256,26 +391,55 @@ class CompanyExtractorLLM:
 
         pe = _num(overview.get("p_e_ratio") or overview.get("pe_ratio"))
         pbv = _num(overview.get("pbv"))
-        # Limit to last 5 dividends (from 15)
+        sector = (about.get("sector") or overview.get("sector") or "").lower()
+
         dividend_values = []
         for d in dividends[:5]:
             v = d.get("value") or ""
             fy = d.get("fiscal_year") or ""
             if v or fy:
-                dividend_values.append({"v": v, "fy": fy})  # Shortened keys
+                dividend_values.append({"v": v, "fy": fy})
         last_dividend = dividend_values[0] if dividend_values else None
 
-        # Shorter keys, removed less critical fields
+        has_dividend_history = len(dividend_values) > 0
+        dividend_years = len(dividend_values)
+
+        bonus_values = []
+        for b_item in bonus[:5]:
+            v = b_item.get("value") or ""
+            fy = b_item.get("fiscal_year") or ""
+            if v or fy:
+                bonus_values.append({"v": v, "fy": fy})
+
+        right_values = []
+        for r_item in right[:5]:
+            v = r_item.get("value") or ""
+            fy = r_item.get("fiscal_year") or ""
+            if v or fy:
+                right_values.append({"v": v, "fy": fy})
+
+        sector_type = "other"
+        if any(kw in sector for kw in ("bank", "commercial")):
+            sector_type = "banking"
+        elif any(kw in sector for kw in ("insurance",)):
+            sector_type = "insurance"
+        elif any(kw in sector for kw in ("hydro", "power", "energy")):
+            sector_type = "hydropower"
+        elif any(kw in sector for kw in ("finance", "microfinance", "micro-finance", "laghubitta")):
+            sector_type = "finance"
+
         return {
             "sym": symbol,
             "name": about.get("company_name") or raw_detail.get("company_display_name") or "",
             "sector": about.get("sector") or overview.get("sector") or "",
+            "sector_type": sector_type,
             "mkt": {
                 "price": _num(overview.get("market_price")),
                 "change": overview.get("pct_change") or "",
                 "52w": overview.get("52_weeks_high_low") or "",
                 "cap": overview.get("market_capitalization") or "",
                 "yield": overview.get("1_year_yield") or "",
+                "avg_volume": overview.get("30_day_avg_volume") or "",
             },
             "val": {
                 "eps": _num(overview.get("eps")),
@@ -285,18 +449,72 @@ class CompanyExtractorLLM:
             },
             "div": dividend_values,
             "div_last": last_dividend,
+            "div_has_history": has_dividend_history,
+            "div_years": dividend_years,
+            "bonus": bonus_values,
+            "right": right_values,
         }
 
     def extract_from_raw_detail(self, raw_detail: dict[str, Any]) -> dict[str, Any]:
         financial_context = self._build_financial_context(raw_detail)
         context_str = json.dumps(financial_context, indent=2, default=str)
         prompt = _EXTRACTION_PROMPT.format(financial_context=context_str)
+
+        symbol = (raw_detail.get("symbol") or "").upper()
+
         try:
+            logger.info("Extracting analysis for %s", symbol)
             data = self._query_model(prompt)
-            return self._validate_and_clean(data, raw_detail)
+            logger.info("Successfully extracted analysis for %s", symbol)
+            result = self._validate_and_clean(data, raw_detail)
+            result = self._post_process_consistency(result, financial_context)
+            return result
         except Exception as e:
-            logger.error("Ollama extraction failed: %s", e)
+            logger.error("Ollama extraction failed for %s: %s", symbol, e)
             return self._fallback_from_raw(raw_detail)
+
+    def _post_process_consistency(self, data: dict[str, Any], ctx: dict[str, Any]) -> dict[str, Any]:
+        """Enforce cross-field consistency rules after AI output."""
+        inv = data.get("investment_snapshot") or {}
+        div = data.get("dividend_profile") or {}
+        risk = data.get("risk_analysis") or {}
+        val = data.get("valuation_analysis") or {}
+
+        quality_n = inv.get("investment_quality_score_numeric")
+        risk_n = inv.get("risk_score_numeric")
+        return_n = inv.get("return_potential_numeric")
+        val_n = val.get("valuation_score_numeric")
+        div_consistency_n = div.get("dividend_consistency_score_numeric")
+        income_n = div.get("income_reliability_score_numeric")
+        volatility_n = risk.get("volatility_score_numeric")
+
+        if not ctx.get("div_has_history"):
+            if isinstance(div, dict):
+                div["dividend_consistency_score_numeric"] = 1
+                div["income_reliability_score_numeric"] = 1
+                div["suitable_for_income_investors"] = False
+
+        if isinstance(div_consistency_n, (int, float)) and div_consistency_n <= 3:
+            if isinstance(div, dict):
+                div["suitable_for_income_investors"] = False
+
+        if isinstance(risk_n, (int, float)) and risk_n >= 7:
+            if isinstance(data.get("final_decision"), dict):
+                data["final_decision"]["recommendation"] = "Avoid"
+
+        if val_n == 1 and isinstance(quality_n, (int, float)) and quality_n >= 6:
+            if isinstance(return_n, (int, float)) and return_n < 6:
+                inv["return_potential_numeric"] = 6
+
+        if val_n == -1:
+            if isinstance(return_n, (int, float)) and return_n > 4:
+                inv["return_potential_numeric"] = 4
+
+        if isinstance(volatility_n, (int, float)) and isinstance(div_consistency_n, (int, float)):
+            if div_consistency_n >= 7 and volatility_n > 5:
+                risk["volatility_score_numeric"] = max(1, min(10, volatility_n - 2))
+
+        return data
 
     def _validate_and_clean(self, data: dict[str, Any], raw_detail: dict[str, Any]) -> dict[str, Any]:
         out = {}
@@ -376,7 +594,6 @@ class CompanyExtractorLLM:
         return out
 
     def _enforce_final_decision_consistency(self, out: dict[str, Any]) -> None:
-        """Overwrite final_decision labels from numeric scores."""
         computed = final_decision_from_numerics(out)
         fd = out.get("final_decision") or {}
         for key, value in computed.items():

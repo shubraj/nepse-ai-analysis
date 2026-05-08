@@ -5,11 +5,12 @@ import { updatePageMeta, addJsonLd, createBreadcrumbSchema } from "../lib/seo";
 import type { Company } from "../types/company";
 import {
   getRiskTier,
-  getRecommendation,
+  getSignal,
   riskTierLabel,
-  recommendationLabel,
+  signalLabel,
+  entryTimingLabel,
 } from "../lib/screening";
-import type { RiskTier, Recommendation } from "../lib/screening";
+import type { RiskTier, Signal } from "../lib/screening";
 
 export function CompanyList() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -29,13 +30,14 @@ export function CompanyList() {
   // SEO: screener page meta and schema
   useEffect(() => {
     const riskLabel = risk_tier ? ` – ${risk_tier}` : "";
-    const title = `NEPSE Stock Screener${riskLabel} | Filter Nepal Stocks | NEPSE Research`;
-    const description = `Filter NEPSE stocks by risk tier, investment recommendation, sector and entry timing. AI-powered fundamental analysis for Nepal stock market screening and discovery.`;
+    const sectorLabel = sector ? ` – ${sector}` : "";
+    const title = `NEPSE Stock Screener${sectorLabel}${riskLabel} | Filter Nepal Stocks by Buy/Hold/Sell | NEPSE Research`;
+    const description = `Filter and screen NEPSE stocks with Buy, Hold, Sell signals, risk tier, sector and entry timing. AI-powered fundamental analysis for Nepal stock market screening. Find the best NEPSE stocks to invest in.`;
 
     updatePageMeta({
       title,
       description,
-      keywords: "NEPSE screener, stock filter, risk analysis, Nepal stocks, investment recommendations",
+      keywords: `NEPSE screener, stock filter, risk analysis, Nepal stocks, investment recommendations, ${sector || "Nepal stock market"}, NEPSE stock list`,
       url: window.location.href,
       canonicalUrl: `${window.location.origin}/companies`,
     });
@@ -47,7 +49,7 @@ export function CompanyList() {
         { name: "Screener", url: `${window.location.origin}/companies` },
       ])
     );
-  }, [risk_tier]);
+  }, [risk_tier, sector]);
 
   useEffect(() => {
     let cancelled = false;
@@ -153,9 +155,9 @@ export function CompanyList() {
             </select>
           </>
         )}
-        <span className="text-xs font-medium text-stone-500 sm:ml-2">Recommendation</span>
+        <span className="text-xs font-medium text-stone-500 sm:ml-2">Signal</span>
         {(["now", "wait", "avoid"] as const).map((t) => {
-          const label = t === "now" ? "Consider" : t === "wait" ? "Watch" : "Avoid";
+          const label = entryTimingLabel[t];
           return (
             <button
               key={t}
@@ -196,7 +198,7 @@ export function CompanyList() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {companies.map((c) => {
             const risk = getRiskTier(c.analysis as Record<string, unknown>);
-            const rec = getRecommendation(c.analysis as Record<string, unknown>);
+            const sig = getSignal(c.analysis as Record<string, unknown>);
             return (
               <Link
                 key={c.id}
@@ -207,13 +209,13 @@ export function CompanyList() {
                 <div className="mt-0.5 text-sm font-medium text-stone-800 line-clamp-2">{c.name}</div>
                 <div className="mt-1 text-xs text-stone-500">{c.sector ?? "N/A"}</div>
                 <div className="mt-3 flex flex-wrap items-center gap-2">
-                  {rec && (
+                  {sig && (
                     <span
                       className={`inline-flex items-center rounded-lg px-2.5 py-1 text-sm font-medium ${
-                        rec === "consider" ? "bg-emerald-100 text-emerald-800" : rec === "avoid" ? "bg-red-100 text-red-800" : "bg-amber-100 text-amber-800"
+                        sig === "buy" ? "bg-emerald-100 text-emerald-800" : sig === "sell" ? "bg-red-100 text-red-800" : "bg-amber-100 text-amber-800"
                       }`}
                     >
-                      {recommendationLabel[rec as Recommendation]}
+                      {signalLabel[sig as Signal]}
                     </span>
                   )}
                   {risk && (

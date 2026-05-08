@@ -2,30 +2,30 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api } from "../api/client";
 import { useWatchlist } from "../contexts/WatchlistContext";
-import { updatePageMeta, addJsonLd, createBreadcrumbSchema, createArticleSchema } from "../lib/seo";
+import { updatePageMeta, addJsonLd, createBreadcrumbSchema, createArticleSchema, createStockSchema } from "../lib/seo";
 import type {
   Company,
 } from "../types/company";
 import {
   getRiskTier,
-  getRecommendation,
+  getSignal,
   riskTierLabel,
-  recommendationLabel,
+  signalLabel,
 } from "../lib/screening";
-import type { RiskTier, Recommendation } from "../lib/screening";
+import type { RiskTier, Signal } from "../lib/screening";
 
 const DEFAULT_DOC_TITLE = "NEPSE Research – NEPSE Stock AI Analysis";
 const DEFAULT_META_DESCRIPTION =
   "Free AI-powered NEPSE stock analysis and screener for the Nepal stock market. Informational only, not investment advice.";
 
 function setPageMeta(company: Company) {
-  const title = `${company.symbol}: ${company.name} – NEPSE Stock Analysis | NEPSE Research`;
-  const description = `AI-powered analysis of ${company.symbol} (${company.name}) stock on Nepal stock exchange. Risk assessment, valuation, and investment recommendations.`;
+  const title = `${company.symbol} Stock Analysis - Buy, Hold, Sell &amp; Risk | NEPSE Research`;
+  const description = `AI-powered NEPSE analysis of ${company.symbol} (${company.name}). Get Buy, Hold, Sell signal, risk tier, valuation, PE ratio, dividend history and outlook for ${company.symbol} on Nepal Stock Exchange. Updated daily.`;
 
   updatePageMeta({
     title,
     description,
-    keywords: `${company.symbol}, ${company.name}, NEPSE analysis, Nepal stock, ${company.sector || ""}`,
+    keywords: `${company.symbol}, ${company.name}, NEPSE analysis, Nepal stock, ${company.sector || ""}, ${company.symbol} stock price, ${company.symbol} investment, Nepal stock exchange`,
     url: `/company/${company.symbol}`,
     canonicalUrl: `${window.location.origin}/company/${company.symbol}`,
     image: undefined,
@@ -36,19 +36,30 @@ function setPageMeta(company: Company) {
     createBreadcrumbSchema([
       { name: "Home", url: `${window.location.origin}/` },
       { name: "Screener", url: `${window.location.origin}/companies` },
-      { name: company.symbol, url: `${window.location.origin}/company/${company.symbol}` },
+      { name: `${company.symbol} Analysis`, url: `${window.location.origin}/company/${company.symbol}` },
     ])
   );
 
   // Add article schema for the analysis
   addJsonLd(
     createArticleSchema({
-      headline: `${company.symbol}: ${company.name}`,
+      headline: `${company.symbol}: ${company.name} – NEPSE Stock Analysis`,
       description,
       datePublished: company.created_at,
       dateModified: company.updated_at,
       author: "NEPSE Research",
-      keywords: `${company.symbol}, ${company.sector || "Nepal stocks"}`,
+      keywords: `${company.symbol}, ${company.sector || "Nepal stocks"}, NEPSE analysis`,
+    })
+  );
+
+  // Add FinancialProduct schema for the stock
+  addJsonLd(
+    createStockSchema({
+      symbol: company.symbol,
+      name: company.name,
+      sector: company.sector || undefined,
+      description,
+      url: `${window.location.origin}/company/${company.symbol}`,
     })
   );
 }
@@ -297,8 +308,26 @@ function AnalysisCardsSection({ analysis }: { analysis: Analysis }) {
   };
 
   const summaryItems = [
-    { label: "Recommendation", value: finalDecision?.recommendation },
-    { label: "Entry timing", value: finalDecision?.entry_timing },
+    {
+      label: "Signal",
+      value: (() => {
+        const raw = String(finalDecision?.recommendation ?? "").trim().toLowerCase();
+        if (raw === "consider") return "Buy";
+        if (raw === "watch") return "Hold";
+        if (raw === "avoid") return "Sell";
+        return finalDecision?.recommendation;
+      })(),
+    },
+    {
+      label: "Entry timing",
+      value: (() => {
+        const raw = String(finalDecision?.entry_timing ?? "").trim().toLowerCase();
+        if (raw === "now") return "Buy Now";
+        if (raw === "wait") return "Wait";
+        if (raw === "avoid") return "Sell Now";
+        return finalDecision?.entry_timing;
+      })(),
+    },
     { label: "Risk tier", value: finalDecision?.risk_tier },
     { label: "Investability", value: finalDecision?.investability_label },
     { label: "Confidence", value: finalDecision?.confidence_level },
@@ -496,7 +525,7 @@ export function CompanyDetail() {
     );
 
   const risk = analysisToShow && getRiskTier(analysisToShow as Record<string, unknown>);
-  const rec = analysisToShow && getRecommendation(analysisToShow as Record<string, unknown>);
+  const sig = analysisToShow && getSignal(analysisToShow as Record<string, unknown>);
   const { isInWatchlist, toggle: toggleWatchlist } = useWatchlist();
   const inWatchlist = isInWatchlist(company.symbol);
 
@@ -512,35 +541,19 @@ export function CompanyDetail() {
         </span>
       </nav>
 
-      <header className="surface-card rounded-3xl p-6 sm:p-8">
+      <header className="surface-card rounded-3xl p-6 sm:p-8 animate-fade-in">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2">
             <span className="inline-flex items-center rounded-lg bg-stone-100 px-3 py-2 font-mono text-base font-semibold text-stone-800">
               {company.symbol}
             </span>
-            {rec && (
-              <span
-                className={`inline-flex items-center rounded-lg px-3 py-1.5 text-sm font-medium ${
-                  rec === "consider"
-                    ? "bg-emerald-100 text-emerald-800"
-                    : rec === "avoid"
-                      ? "bg-red-100 text-red-800"
-                      : "bg-amber-100 text-amber-800"
-                }`}
-              >
-                {recommendationLabel[rec as Recommendation]}
+            {sig && (
+              <span className={`stat-badge ${sig === "buy" ? "badge-buy" : sig === "sell" ? "badge-sell" : "badge-hold"}`}>
+                {signalLabel[sig as Signal]}
               </span>
             )}
             {risk && (
-              <span
-                className={`inline-flex items-center rounded-lg px-3 py-1.5 text-sm font-medium ${
-                  risk === "low"
-                    ? "bg-sky-100 text-sky-800"
-                    : risk === "high"
-                      ? "bg-red-100 text-red-800"
-                      : "bg-amber-100 text-amber-800"
-                }`}
-              >
+              <span className={`stat-badge ${risk === "low" ? "badge-risk-low" : risk === "high" ? "badge-risk-high" : "badge-risk-moderate"}`}>
                 {riskTierLabel[risk as RiskTier]}
               </span>
             )}

@@ -78,3 +78,7 @@ export interface SectorPerformanceItem {
 export interface SectorPerformanceResponse {
   sectors: SectorPerformanceItem[];
 }
+
+export interface PageViewCountResponse {
+  total: number;
+}

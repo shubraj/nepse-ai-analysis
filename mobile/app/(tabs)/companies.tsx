@@ -15,11 +15,12 @@ import { api } from "../../src/api/client";
 import type { Company } from "../../src/types/company";
 import {
   getRiskTier,
-  getRecommendation,
+  getSignal,
   riskTierLabel,
-  recommendationLabel,
+  signalLabel,
+  entryTimingLabel,
 } from "../../src/lib/screening";
-import type { RiskTier, Recommendation } from "../../src/lib/screening";
+import type { RiskTier, Signal } from "../../src/lib/screening";
 
 function CompanyRow({
   company,
@@ -27,8 +28,8 @@ function CompanyRow({
   company: Company;
 }) {
   const risk = getRiskTier(company.analysis as Record<string, unknown>);
-  const rec = getRecommendation(company.analysis as Record<string, unknown>);
-  const recStyle = rec === "consider" ? styles.badgeGreen : rec === "avoid" ? styles.badgeRed : styles.badgeAmber;
+  const sig = getSignal(company.analysis as Record<string, unknown>);
+  const recStyle = sig === "buy" ? styles.badgeGreen : sig === "sell" ? styles.badgeRed : styles.badgeAmber;
   const riskStyle = risk === "low" ? styles.badgeSky : risk === "high" ? styles.badgeRed : styles.badgeAmber;
 
   return (
@@ -38,7 +39,7 @@ function CompanyRow({
         <Text style={styles.name} numberOfLines={2}>{company.name}</Text>
         <Text style={styles.sector}>{company.sector ?? "N/A"}</Text>
         <View style={styles.badges}>
-          {rec && <View style={[styles.badge, recStyle]}><Text style={styles.badgeText}>{recommendationLabel[rec as Recommendation]}</Text></View>}
+          {sig && <View style={[styles.badge, recStyle]}><Text style={styles.badgeText}>{signalLabel[sig as Signal]}</Text></View>}
           {risk && <View style={[styles.badge, riskStyle]}><Text style={styles.badgeText}>{riskTierLabel[risk as RiskTier]}</Text></View>}
         </View>
       </TouchableOpacity>
@@ -133,9 +134,9 @@ export default function CompaniesScreen() {
       </View>
 
       <View style={styles.filters}>
-        <Text style={styles.filterLabel}>Recommendation</Text>
+        <Text style={styles.filterLabel}>Signal</Text>
         {(["now", "wait", "avoid"] as const).map((t) => {
-          const label = t === "now" ? "Consider" : t === "wait" ? "Watch" : "Avoid";
+          const label = entryTimingLabel[t];
           return (
             <TouchableOpacity
               key={t}

@@ -1,5 +1,6 @@
 import { BrowserRouter, Link, NavLink, Route, Routes } from "react-router-dom";
 import { WatchlistProvider } from "./contexts/WatchlistContext";
+import { ViewCounter } from "./components/ViewCounter";
 import { CompanyDetail } from "./pages/CompanyDetail";
 import { CompanyList } from "./pages/CompanyList";
 import { Compare } from "./pages/Compare";
@@ -11,10 +12,10 @@ function NavItem({ to, end = false, children }: { to: string; end?: boolean; chi
       to={to}
       end={end}
       className={({ isActive }) =>
-        `rounded-full px-3 py-1.5 text-sm font-medium transition-all ${
+        `rounded-lg px-3.5 py-2 text-sm font-medium transition-colors ${
           isActive
-            ? "bg-teal-600 text-white shadow-sm"
-            : "text-stone-600 hover:bg-white hover:text-teal-700"
+            ? "bg-teal-50 text-teal-700"
+            : "text-stone-600 hover:bg-stone-100 hover:text-stone-800"
         }`
       }
     >
@@ -27,9 +28,16 @@ function App() {
   return (
     <WatchlistProvider>
       <BrowserRouter>
-        <nav className="sticky top-0 z-40 border-b border-stone-200/70 bg-white/80 text-stone-700 shadow-sm backdrop-blur" role="navigation" aria-label="Main navigation">
-          <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-3 px-4 py-3 sm:gap-4">
-            <Link to="/" className="font-display text-lg font-semibold text-stone-900 transition-colors hover:text-teal-600">
+        <nav
+          className="sticky top-0 z-40 border-b border-stone-200/70 bg-white/90 backdrop-blur-sm"
+          role="navigation"
+          aria-label="Main navigation"
+        >
+          <div className="mx-auto flex max-w-5xl items-center gap-1 px-4 py-2.5">
+            <Link
+              to="/"
+              className="font-display text-lg font-semibold tracking-tight text-stone-900 hover:text-teal-700 transition-colors mr-auto sm:mr-3"
+            >
               NEPSE Research
             </Link>
             <NavItem to="/" end>Dashboard</NavItem>
@@ -38,7 +46,7 @@ function App() {
           </div>
         </nav>
 
-        <main className="mx-auto min-h-[calc(100vh-58px)] max-w-5xl px-4 py-8 sm:py-10" role="main">
+        <main className="mx-auto min-h-[calc(100vh-55px)] max-w-5xl px-4 py-6 sm:py-8" role="main">
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/companies" element={<CompanyList />} />
@@ -47,14 +55,17 @@ function App() {
           </Routes>
         </main>
 
-        <footer className="border-t border-stone-200/80 bg-white/80 backdrop-blur" role="contentinfo">
-          <div className="mx-auto max-w-5xl px-4 py-5">
-            <div className="rounded-xl border border-stone-200/70 bg-white/80 px-4 py-3">
-              <p className="text-xs leading-relaxed text-stone-500">
-                <strong className="text-stone-600">Disclaimer:</strong> This site provides AI-based analysis from historical and publicly available data for educational use only. Not professional investment advice.
+        <footer className="border-t border-stone-200/60 bg-stone-50/80" role="contentinfo">
+          <div className="mx-auto max-w-5xl px-4 py-4 space-y-3">
+            <div className="flex flex-col gap-2 text-center sm:flex-row sm:items-center sm:justify-between sm:text-left">
+              <p className="text-center text-xs text-stone-400 sm:text-left">&copy; {new Date().getFullYear()} NEPSE Research</p>
+              <ViewCounter />
+            </div>
+            <div className="border-t border-stone-200/60 pt-3">
+              <p className="text-center text-xs leading-5 text-stone-500">
+                <strong>Disclaimer:</strong> AI-generated analysis from historical data for educational purposes. Not professional investment advice. Consult a SEBON-licensed financial advisor before investing.
               </p>
             </div>
-            <p className="mt-3 text-center text-xs text-stone-500">&copy; 2026 NEPSE Research</p>
           </div>
         </footer>
       </BrowserRouter>

@@ -1,10 +1,9 @@
-/** Screening labels. Display: Recommendation + Risk only. */
+/** Screening labels. Display: Signal (Buy/Hold/Sell) + Risk only. */
 
 export type RiskTier = "low" | "moderate" | "high";
 export type Investability = "high" | "moderate" | "low";
 export type EntryTiming = "now" | "wait" | "avoid";
-
-export type Recommendation = "consider" | "watch" | "avoid";
+export type Signal = "buy" | "hold" | "sell";
 
 function num(a: Record<string, unknown> | null | undefined, ...path: string[]): number | null {
   if (!a) return null;
@@ -62,33 +61,33 @@ export function getEntryTiming(analysis: Record<string, unknown> | null | undefi
 }
 
 export const riskTierLabel: Record<RiskTier, string> = {
-  low: "Lower risk",
-  moderate: "Moderate risk",
-  high: "Higher risk",
+  low: "Low Risk",
+  moderate: "Moderate Risk",
+  high: "High Risk",
 };
 
 export const investabilityLabel: Record<Investability, string> = {
-  high: "High investability",
-  moderate: "Moderate investability",
-  low: "Low investability",
+  high: "High Quality",
+  moderate: "Moderate Quality",
+  low: "Low Quality",
 };
 
 export const entryTimingLabel: Record<EntryTiming, string> = {
-  now: "Time to invest",
-  wait: "Wait for entry",
-  avoid: "Avoid",
+  now: "Buy",
+  wait: "Hold",
+  avoid: "Sell",
 };
 
-export function getRecommendation(analysis: Record<string, unknown> | null | undefined): Recommendation | null {
+export function getSignal(analysis: Record<string, unknown> | null | undefined): Signal | null {
   const timing = getEntryTiming(analysis);
   if (!timing) return null;
-  if (timing === "now") return "consider";
-  if (timing === "wait") return "watch";
-  return "avoid";
+  if (timing === "now") return "buy";
+  if (timing === "wait") return "hold";
+  return "sell";
 }
 
-export const recommendationLabel: Record<Recommendation, string> = {
-  consider: "Consider",
-  watch: "Watch",
-  avoid: "Avoid",
+export const signalLabel: Record<Signal, string> = {
+  buy: "Buy",
+  hold: "Hold",
+  sell: "Sell",
 };

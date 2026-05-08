@@ -5,18 +5,17 @@ import { useWatchlist } from "../contexts/WatchlistContext";
 import { updatePageMeta, addJsonLd, createBreadcrumbSchema } from "../lib/seo";
 import type {
   Company,
-  MarketPredictionResponse,
   MarketSentimentResponse,
   SectorPerformanceItem,
   SuggestionItem,
 } from "../types/company";
 import {
   getRiskTier,
-  getRecommendation,
+  getSignal,
   riskTierLabel,
-  recommendationLabel,
+  signalLabel,
 } from "../lib/screening";
-import type { RiskTier, Recommendation } from "../lib/screening";
+import type { RiskTier, Signal } from "../lib/screening";
 
 function CompanyCardRow({
   companies,
@@ -31,7 +30,7 @@ function CompanyCardRow({
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {companies.slice(0, 6).map((c) => {
         const risk = getRiskTier(c.analysis as Record<string, unknown>);
-        const rec = getRecommendation(c.analysis as Record<string, unknown>);
+        const sig = getSignal(c.analysis as Record<string, unknown>);
         return (
           <Link
             key={c.id}
@@ -42,13 +41,13 @@ function CompanyCardRow({
             <div className="mt-0.5 text-sm font-medium text-stone-800 line-clamp-2">{c.name}</div>
             <div className="mt-1 text-xs text-stone-500">{c.sector ?? "N/A"}</div>
             <div className="mt-2 flex flex-wrap items-center gap-2">
-              {rec && (
+              {sig && (
                 <span
                   className={`inline-flex items-center rounded-lg px-2.5 py-1 text-sm font-medium ${
-                    rec === "consider" ? "bg-emerald-100 text-emerald-800" : rec === "avoid" ? "bg-red-100 text-red-800" : "bg-amber-100 text-amber-800"
+                    sig === "buy" ? "bg-emerald-100 text-emerald-800" : sig === "sell" ? "bg-red-100 text-red-800" : "bg-amber-100 text-amber-800"
                   }`}
                 >
-                  {recommendationLabel[rec as Recommendation]}
+                  {signalLabel[sig as Signal]}
                 </span>
               )}
               {risk && (
@@ -88,7 +87,6 @@ export function Dashboard() {
   const [timeToInvest, setTimeToInvest] = useState<Company[]>([]);
   const [waitForEntry, setWaitForEntry] = useState<Company[]>([]);
   const [marketSentiment, setMarketSentiment] = useState<MarketSentimentResponse | null>(null);
-  const [marketPrediction, setMarketPrediction] = useState<MarketPredictionResponse | null>(null);
   const [sectorPerformance, setSectorPerformance] = useState<SectorPerformanceItem[]>([]);
   const [watchlistCompanies, setWatchlistCompanies] = useState<Company[]>([]);
   const [watchlistLoading, setWatchlistLoading] = useState(false);
@@ -106,9 +104,9 @@ export function Dashboard() {
   // SEO: home page meta and schema
   useEffect(() => {
     updatePageMeta({
-      title: "NEPSE Research – Free AI Stock Analysis Dashboard",
-      description: "Free AI-powered NEPSE stock analysis dashboard. View market sentiment, sector performance, investment ideas and entry timing for Nepal stock market companies.",
-      keywords: "NEPSE stocks, Nepal stock market, AI stock analysis, stock screener, market sentiment",
+      title: "NEPSE Research Dashboard - Free AI NEPSE Stock Analysis | Nepal Stock Market",
+      description: "NEPSE stock analysis dashboard with Buy/Hold/Sell signals, market sentiment, sector performance, top stock picks and AI-powered investment ideas for Nepal stock market. Updated daily.",
+      keywords: "NEPSE stocks, Nepal stock market, AI stock analysis, buy sell NEPSE, NEPSE buy hold sell, market sentiment, NEPSE dashboard, Nepal stock recommendations, NEPSE today",
       url: `${window.location.origin}/`,
       canonicalUrl: `${window.location.origin}/`,
     });
@@ -126,7 +124,6 @@ export function Dashboard() {
     setLoading(true);
     Promise.all([
       api.getMarketSentiment().catch(() => null),
-      api.getMarketPrediction().catch(() => null),
       api.getSectorPerformance().catch(() => ({ sectors: [] as SectorPerformanceItem[] })),
       api.listCompanies({ limit: 10, investability: "high" }),
       api.listCompanies({ limit: 10, risk_tier: "low" }),
@@ -134,10 +131,9 @@ export function Dashboard() {
       api.listCompanies({ limit: 10, entry_timing: "now" }),
       api.listCompanies({ limit: 10, entry_timing: "wait" }),
     ])
-      .then(([sentiment, prediction, sectorResp, a, b, c, d, e]) => {
+      .then(([sentiment, sectorResp, a, b, c, d, e]) => {
         if (!cancelled) {
           if (sentiment) setMarketSentiment(sentiment);
-          if (prediction) setMarketPrediction(prediction);
           setSectorPerformance(sectorResp?.sectors ?? []);
           setMostInvestable(a);
           setLowRisk(b);
@@ -270,59 +266,6 @@ export function Dashboard() {
         </section>
       )}
 
-      {marketPrediction && (
-        <section className="surface-card rounded-3xl p-6">
-          <h2 className="font-display text-lg font-semibold text-stone-900">Tomorrow&apos;s prediction</h2>
-          <p className="mt-1 text-sm text-stone-500">
-            AI prediction based on today&apos;s market data.
-          </p>
-          <div
-            className={`mt-4 rounded-xl border p-5 ${
-              marketPrediction.direction === "up"
-                ? "border-emerald-200 bg-emerald-50/80"
-                : marketPrediction.direction === "down"
-                  ? "border-red-200 bg-red-50/80"
-                  : "border-stone-200 bg-stone-50/80"
-            }`}
-          >
-            <div className="flex flex-col gap-3">
-              <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-                <span
-                  className={`inline-flex w-fit items-center rounded-xl px-4 py-2 text-lg font-semibold ${
-                    marketPrediction.direction === "up"
-                      ? "bg-emerald-100 text-emerald-800"
-                      : marketPrediction.direction === "down"
-                        ? "bg-red-100 text-red-800"
-                        : "bg-stone-100 text-stone-800"
-                  }`}
-                >
-                  {marketPrediction.direction === "up" ? "↑ Up" : marketPrediction.direction === "down" ? "↓ Down" : "→ Flat"}
-                </span>
-                {marketPrediction.predicted_change_pct && (
-                  <span className={`font-semibold ${marketPrediction.direction === "up" ? "text-emerald-600" : marketPrediction.direction === "down" ? "text-red-600" : "text-stone-600"}`}>
-                    {marketPrediction.predicted_change_pct}
-                  </span>
-                )}
-                <span className="text-stone-600">Confidence: {marketPrediction.confidence}/10</span>
-              </div>
-              <p className="text-sm text-stone-700">{marketPrediction.summary}</p>
-              {marketPrediction.key_factors?.length > 0 && (
-                <div className="mt-2">
-                  <span className="text-xs font-medium text-stone-500">Key factors:</span>
-                  <ul className="mt-1 flex flex-wrap gap-2">
-                    {marketPrediction.key_factors.map((factor, i) => (
-                      <li key={i} className="rounded-lg bg-white/80 px-2 py-1 text-xs text-stone-600">
-                        {factor}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          </div>
-        </section>
-      )}
-
       {sectorPerformance.length > 0 && (
         <section className="surface-card rounded-3xl p-6">
           <h2 className="font-display text-lg font-semibold text-stone-900">Sector performance</h2>
@@ -369,7 +312,7 @@ export function Dashboard() {
             <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {watchlistCompanies.map((c) => {
                 const risk = getRiskTier(c.analysis as Record<string, unknown>);
-                const rec = getRecommendation(c.analysis as Record<string, unknown>);
+                const sig = getSignal(c.analysis as Record<string, unknown>);
                 return (
                   <div
                     key={c.id}
@@ -391,13 +334,13 @@ export function Dashboard() {
                       </button>
                     </div>
                     <div className="mt-2 flex flex-wrap gap-1.5">
-                      {rec && (
+                      {sig && (
                         <span
                           className={`inline-flex rounded-lg px-2 py-0.5 text-xs font-medium ${
-                            rec === "consider" ? "bg-emerald-100 text-emerald-800" : rec === "avoid" ? "bg-red-100 text-red-800" : "bg-amber-100 text-amber-800"
+                            sig === "buy" ? "bg-emerald-100 text-emerald-800" : sig === "sell" ? "bg-red-100 text-red-800" : "bg-amber-100 text-amber-800"
                           }`}
                         >
-                          {recommendationLabel[rec as Recommendation]}
+                          {signalLabel[sig as Signal]}
                         </span>
                       )}
                       {risk && (
@@ -524,14 +467,14 @@ export function Dashboard() {
                           s.recommendation === "consider" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"
                         }`}
                       >
-                        {s.recommendation === "consider" ? "Consider" : "Watch"}
+                        {s.recommendation === "consider" ? "Buy" : "Hold"}
                       </span>
                       <span
                         className={`inline-flex items-center rounded-lg px-2 py-0.5 text-xs font-medium ${
                           s.risk_tier === "low" ? "bg-sky-100 text-sky-800" : s.risk_tier === "high" ? "bg-red-100 text-red-800" : "bg-amber-100 text-amber-800"
                         }`}
                       >
-                        {s.risk_tier === "low" ? "Lower risk" : s.risk_tier === "high" ? "Higher risk" : "Moderate risk"}
+                        {s.risk_tier === "low" ? "Low Risk" : s.risk_tier === "high" ? "High Risk" : "Moderate Risk"}
                       </span>
                       {s.growth_potential && (
                         <span
@@ -556,7 +499,7 @@ export function Dashboard() {
 
       <section>
         <h2 className="font-display text-lg font-semibold text-stone-900">High conviction</h2>
-        <p className="text-sm text-stone-500">High quality and conviction. Suitable for core allocation.</p>
+        <p className="text-sm text-stone-500">High quality and conviction. Suitable for core portfolio.</p>
         <CompanyCardRow companies={mostInvestable} loading={loading} />
         {mostInvestable.length > 0 && (
           <Link to="/companies?investability=high" className="mt-2 inline-block text-sm font-medium text-teal-600 hover:text-teal-700">
@@ -566,7 +509,7 @@ export function Dashboard() {
       </section>
 
       <section>
-        <h2 className="font-display text-lg font-semibold text-stone-900">Lower risk</h2>
+        <h2 className="font-display text-lg font-semibold text-stone-900">Low Risk</h2>
         <p className="text-sm text-stone-500">Lower risk profile. Suitable for conservative investors.</p>
         <CompanyCardRow companies={lowRisk} loading={loading} />
         {lowRisk.length > 0 && (
@@ -577,7 +520,7 @@ export function Dashboard() {
       </section>
 
       <section>
-        <h2 className="font-display text-lg font-semibold text-stone-900">Higher risk / return</h2>
+        <h2 className="font-display text-lg font-semibold text-stone-900">High Risk / Return</h2>
         <p className="text-sm text-stone-500">Higher volatility and return potential. For risk-tolerant investors.</p>
         <CompanyCardRow companies={highRisk} loading={loading} />
         {highRisk.length > 0 && (
@@ -588,8 +531,8 @@ export function Dashboard() {
       </section>
 
       <section>
-        <h2 className="font-display text-lg font-semibold text-stone-900">Time to invest</h2>
-        <p className="text-sm text-stone-500">Favorable entry timing. Consider accumulation.</p>
+        <h2 className="font-display text-lg font-semibold text-stone-900">Buy Signal</h2>
+        <p className="text-sm text-stone-500">Favorable entry timing. Consider buying at current levels.</p>
         <CompanyCardRow companies={timeToInvest} loading={loading} />
         {timeToInvest.length > 0 && (
           <Link to="/companies?entry_timing=now" className="mt-2 inline-block text-sm font-medium text-teal-600 hover:text-teal-700">
@@ -599,8 +542,8 @@ export function Dashboard() {
       </section>
 
       <section>
-        <h2 className="font-display text-lg font-semibold text-stone-900">Wait for entry</h2>
-        <p className="text-sm text-stone-500">Wait for better entry or more clarity before buying.</p>
+        <h2 className="font-display text-lg font-semibold text-stone-900">Hold Signal</h2>
+        <p className="text-sm text-stone-500">Wait for better entry or more clarity before adding to position.</p>
         <CompanyCardRow companies={waitForEntry} loading={loading} />
         {waitForEntry.length > 0 && (
           <Link to="/companies?entry_timing=wait" className="mt-2 inline-block text-sm font-medium text-teal-600 hover:text-teal-700">

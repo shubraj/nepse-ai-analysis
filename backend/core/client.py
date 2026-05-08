@@ -183,7 +183,7 @@ class MerolaganiClient:
         dividend_history = self._parse_history_table(soup, "dividend-panel", value_fy_columns=(1, 2))
         bonus_history = self._parse_history_table(soup, "bonus-panel", value_fy_columns=(1, 2))
         right_share_history = self._parse_history_table(soup, "right-panel", value_fy_columns=(1, 2))
-        return {
+        result: dict[str, Any] = {
             "symbol": symbol.upper(),
             "company_display_name": company_display_name,
             "overview": overview,
@@ -192,6 +192,7 @@ class MerolaganiClient:
             "bonus_history": bonus_history,
             "right_share_history": right_share_history,
         }
+        return result
 
     def close(self) -> None:
         self.session.close()
