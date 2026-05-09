@@ -194,20 +194,25 @@ export function Dashboard() {
 
   return (
     <div className="space-y-10">
-      <header className="surface-card rounded-3xl px-6 py-8 text-center sm:py-10">
-        <h1 className="font-display text-3xl font-bold text-stone-900 sm:text-4xl">NEPSE Research Dashboard</h1>
-        <p className="mx-auto mt-3 max-w-2xl text-lg text-stone-600">
-          AI-powered fundamental analysis, risk assessment, and investment recommendations for Nepal stock market companies.
-        </p>
-        <p className="mx-auto mt-2 max-w-xl text-xs text-stone-500">
-          Historical data analysis for informational purposes. Not professional investment advice.
-        </p>
-        <Link
-          to="/companies"
-          className="mt-6 inline-block rounded-xl bg-teal-600 px-5 py-2.5 font-medium text-white hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2"
-        >
-          Browse all companies
-        </Link>
+      <header className="surface-card rounded-2xl px-6 py-8 sm:px-8 sm:py-9">
+        <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-400">Nepal stock research</p>
+            <h1 className="mt-2 font-display text-3xl font-bold text-stone-900 sm:text-4xl">NEPSE Research Dashboard</h1>
+            <p className="mt-3 max-w-2xl text-base text-stone-600">
+              AI-powered fundamental analysis, risk assessment, and investment recommendations for Nepal stock market companies.
+            </p>
+            <p className="mt-2 max-w-xl text-xs text-stone-500">
+              Historical data analysis for informational purposes. Not professional investment advice.
+            </p>
+          </div>
+          <Link
+            to="/companies"
+            className="inline-flex items-center justify-center rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2"
+          >
+            Browse all companies
+          </Link>
+        </div>
       </header>
 
       {marketSentiment && (

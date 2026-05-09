@@ -178,12 +178,12 @@ function CurrentValuesSection({
   const secondaryEntries = entries.filter(([k]) => !OVERVIEW_PRIMARY.includes(k));
 
   return (
-    <div className="rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm sm:p-6">
+    <div className="surface-card rounded-2xl p-5 sm:p-6">
       <h2 className="mb-4 font-display text-base font-semibold text-stone-800">Key metrics</h2>
-      <dl className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+      <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {(primaryEntries.length > 0 ? primaryEntries : entries.slice(0, 6)).map(([key, value]) => (
-          <div key={key} className="rounded-lg bg-stone-50 px-3 py-2">
-            <dt className="text-xs uppercase tracking-wide text-stone-500">{overviewLabel(key)}</dt>
+          <div key={key} className="rounded-lg border border-stone-100 px-3 py-2">
+            <dt className="text-[11px] uppercase tracking-wide text-stone-500">{overviewLabel(key)}</dt>
             <dd className="text-sm font-semibold text-stone-900">{value}</dd>
           </div>
         ))}
@@ -247,28 +247,19 @@ function AnalysisScoresSection({ analysis }: { analysis: Analysis }) {
   if (scores.length === 0 && valuationScore == null && investScore == null) return null;
 
   return (
-    <div className="rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm sm:p-6">
+    <div className="surface-card rounded-2xl p-5 sm:p-6">
       <h3 className="mb-4 font-display text-base font-semibold text-stone-800">Analysis scores</h3>
-      <div className="space-y-3">
+      <div className="divide-y divide-stone-100">
         {scores.map((s) => (
-          <div key={s.label} className="grid grid-cols-[1fr_auto] items-center gap-3 sm:grid-cols-[140px_1fr_2.5rem]">
-            <span className="text-sm text-stone-500">{s.label}</span>
-            <div className="h-2 overflow-hidden rounded-full bg-stone-100">
-              <div
-                className="h-full rounded-full transition-[width]"
-                style={{
-                  width: `${((s.value ?? 0) / s.max) * 100}%`,
-                  backgroundColor: s.danger ? "#dc2626" : "#0d9488",
-                }}
-              />
-            </div>
-            <span className="text-right text-sm font-semibold text-stone-700">
+          <div key={s.label} className="flex items-center justify-between py-2">
+            <span className="text-sm text-stone-600">{s.label}</span>
+            <span className="font-mono text-sm font-semibold text-stone-800">
               {s.value}/{s.max}
             </span>
           </div>
         ))}
         {valuationScore != null && (
-          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-stone-100 pt-3">
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-3">
             <span className="text-sm text-stone-500">Valuation</span>
             <span className="font-medium text-stone-800">
               {valuationScore === 1 ? "Undervalued" : valuationScore === 0 ? "Fair" : "Overvalued"}
@@ -360,17 +351,11 @@ function AnalysisCardsSection({ analysis }: { analysis: Analysis }) {
   const Card = ({
     title,
     children,
-    highlight,
   }: {
     title: string;
     children: React.ReactNode;
-    highlight?: boolean;
   }) => (
-    <div
-      className={`rounded-2xl border bg-white p-5 shadow-sm sm:p-6 ${
-        highlight ? "border-l-4 border-l-teal-500 border-stone-200/80 bg-teal-50/30" : "border-stone-200/80"
-      }`}
-    >
+    <div className="surface-card rounded-2xl p-5 sm:p-6">
       <h3 className="mb-3 border-b border-stone-100 pb-2 font-display text-base font-semibold text-stone-800">
         {title}
       </h3>
@@ -382,17 +367,17 @@ function AnalysisCardsSection({ analysis }: { analysis: Analysis }) {
     <div className="space-y-4">
       <AnalysisScoresSection analysis={analysis} />
       {(summaryItems.length > 0 || investment) && (
-        <Card title="At a glance" highlight>
+        <Card title="At a glance">
           <div className="grid gap-2 sm:grid-cols-2">
             {summaryItems.map((item) => (
-              <div key={item.label} className="rounded-lg bg-white/70 px-3 py-2">
-                <div className="text-xs uppercase tracking-wide text-stone-500">{item.label}</div>
+              <div key={item.label} className="rounded-lg border border-stone-100 px-3 py-2">
+                <div className="text-[11px] uppercase tracking-wide text-stone-500">{item.label}</div>
                 <div className="text-sm font-medium text-stone-800">{toText(item.value)}</div>
               </div>
             ))}
             {investment?.suitability != null && investment?.suitability !== "" && (
-              <div className="rounded-lg bg-white/70 px-3 py-2 sm:col-span-2">
-                <div className="text-xs uppercase tracking-wide text-stone-500">Suitable for</div>
+              <div className="rounded-lg border border-stone-100 px-3 py-2 sm:col-span-2">
+                <div className="text-[11px] uppercase tracking-wide text-stone-500">Suitable for</div>
                 <div className="text-sm font-medium text-stone-800">{toText(investment?.suitability)}</div>
               </div>
             )}
@@ -429,9 +414,7 @@ function AnalysisCardsSection({ analysis }: { analysis: Analysis }) {
         <Card title="Top risks">
           <ul className="space-y-2">
             {topRisks.slice(0, 5).map((item, i) => (
-              <li key={i} className="text-sm text-stone-700">
-                • {toText(item)}
-              </li>
+              <li key={i} className="text-sm text-stone-700">• {toText(item)}</li>
             ))}
           </ul>
         </Card>
@@ -541,38 +524,54 @@ export function CompanyDetail() {
         </span>
       </nav>
 
-      <header className="surface-card rounded-3xl p-6 sm:p-8 animate-fade-in">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+      <header className="surface-card rounded-2xl p-6 sm:p-8">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center rounded-lg bg-stone-100 px-3 py-2 font-mono text-base font-semibold text-stone-800">
+            <span className="inline-flex items-center rounded-lg border border-stone-200 bg-stone-50 px-3 py-1.5 font-mono text-sm font-semibold text-stone-800">
               {company.symbol}
             </span>
             {sig && (
-              <span className={`stat-badge ${sig === "buy" ? "badge-buy" : sig === "sell" ? "badge-sell" : "badge-hold"}`}>
+              <span
+                className={`rounded-full border px-2.5 py-1 text-xs font-medium ${
+                  sig === "buy"
+                    ? "badge-buy"
+                    : sig === "sell"
+                      ? "badge-sell"
+                      : "badge-hold"
+                }`}
+              >
                 {signalLabel[sig as Signal]}
               </span>
             )}
             {risk && (
-              <span className={`stat-badge ${risk === "low" ? "badge-risk-low" : risk === "high" ? "badge-risk-high" : "badge-risk-moderate"}`}>
+              <span
+                className={`rounded-full border px-2.5 py-1 text-xs font-medium ${
+                  risk === "low"
+                    ? "badge-risk-low"
+                    : risk === "high"
+                      ? "badge-risk-high"
+                      : "badge-risk-moderate"
+                }`}
+              >
                 {riskTierLabel[risk as RiskTier]}
               </span>
             )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={() => toggleWatchlist(company.symbol)}
-              className={`inline-flex items-center rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+              className={`inline-flex items-center rounded-lg border border-stone-200 px-3 py-1.5 text-sm font-medium transition-colors ${
                 inWatchlist
-                  ? "bg-teal-100 text-teal-800 hover:bg-teal-200"
-                  : "bg-stone-100 text-stone-600 hover:bg-stone-200 hover:text-stone-800"
+                  ? "bg-teal-50 text-teal-700 hover:bg-teal-100"
+                  : "bg-white text-stone-600 hover:bg-stone-50 hover:text-stone-800"
               }`}
             >
               {inWatchlist ? "In watchlist ✓" : "Add to watchlist"}
             </button>
             <Link
               to={`/compare?symbols=${encodeURIComponent(company.symbol)}`}
-              className="inline-flex items-center rounded-lg bg-stone-100 px-3 py-1.5 text-sm font-medium text-stone-600 hover:bg-stone-200 hover:text-stone-800"
+              className="inline-flex items-center rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-sm font-medium text-stone-600 hover:bg-stone-50 hover:text-stone-800"
             >
               Compare
             </Link>
@@ -611,8 +610,8 @@ export function CompanyDetail() {
           return (
             <>
               {summary && (
-                <div className="mt-3 rounded-lg border border-stone-200/80 bg-stone-50 px-3 py-2">
-                  <p className="text-xs uppercase tracking-wide text-stone-500">AI take</p>
+                <div className="mt-3 rounded-lg border border-stone-200 bg-stone-50/60 px-3 py-2">
+                  <p className="text-[11px] uppercase tracking-wide text-stone-500">Summary</p>
                   <p className="mt-1 text-sm text-stone-700">{summarizeVerdict(summary)}</p>
                   {summary.length > 220 && (
                     <details className="mt-2 text-xs text-stone-600">
@@ -623,9 +622,7 @@ export function CompanyDetail() {
                 </div>
               )}
               {confidence !== null && confidence <= 4 && (
-                <p className="mt-2 text-xs font-medium text-amber-700 bg-amber-50 px-2 py-1 rounded inline-block">
-                  Low confidence in this analysis.
-                </p>
+                <p className="mt-2 text-xs text-amber-700">Low confidence in this analysis.</p>
               )}
             </>
           );
@@ -635,7 +632,7 @@ export function CompanyDetail() {
       <CurrentValuesSection sector={company.sector} overview={company.overview} />
 
       {analysisToShow && Object.keys(analysisToShow).length > 0 && (
-        <div className="rounded-2xl border border-amber-200/80 bg-amber-50/70 px-4 py-3 text-sm text-amber-900">
+        <div className="rounded-2xl border border-stone-200 bg-stone-50/70 px-4 py-3 text-sm text-stone-600">
           <strong>Disclaimer:</strong> This analysis is AI-generated from historical and publicly available data. It is for information only and is not professional investment advice. Consult a qualified financial advisor before investing.
         </div>
       )}
@@ -643,7 +640,7 @@ export function CompanyDetail() {
       {analysisToShow && Object.keys(analysisToShow).length > 0 ? (
         <AnalysisCardsSection analysis={analysisToShow} />
       ) : (
-        <div className="rounded-2xl border border-stone-200/80 bg-stone-50/50 p-10 text-center">
+        <div className="rounded-2xl border border-stone-200/80 bg-white p-10 text-center">
           <p className="text-stone-600">No analysis available for this company yet.</p>
           <Link to="/companies" className="mt-3 inline-block text-sm font-medium text-teal-600 hover:text-teal-700">
             Browse other companies →

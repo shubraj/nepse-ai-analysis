@@ -115,75 +115,77 @@ export function CompanyList() {
         </div>
       </div>
 
-      <form
-        className="flex flex-wrap gap-2"
-        onSubmit={(e) => {
-          e.preventDefault();
-          setSearch(q.trim());
-        }}
-      >
-        <input
-          type="search"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Symbol, name, or sector…"
-          className="min-w-[200px] flex-1 rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-stone-900 placeholder:text-stone-400 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20"
-        />
-        <button
-          type="submit"
-          className="rounded-xl bg-teal-600 px-4 py-2.5 font-medium text-white hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2"
+      <div className="surface-card rounded-2xl p-4 sm:p-5">
+        <form
+          className="flex flex-wrap gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            setSearch(q.trim());
+          }}
         >
-          Search
-        </button>
-      </form>
+          <input
+            type="search"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Symbol, name, or sector…"
+            className="min-w-[200px] flex-1 rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-stone-900 placeholder:text-stone-400 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20"
+          />
+          <button
+            type="submit"
+            className="rounded-xl bg-teal-600 px-4 py-2.5 font-medium text-white hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2"
+          >
+            Search
+          </button>
+        </form>
 
-      <div className="flex flex-wrap items-center gap-2 gap-y-3">
-        {sectors.length > 0 && (
-          <>
-            <span className="text-xs font-medium text-stone-500">Sector</span>
-            <select
-              value={sector ?? ""}
-              onChange={(e) => setSectorFilter(e.target.value || null)}
-              className="rounded-xl border border-stone-200 bg-white px-3 py-1.5 text-sm text-stone-800 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20"
-            >
-              <option value="">All sectors</option>
-              {sectors.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          </>
-        )}
-        <span className="text-xs font-medium text-stone-500 sm:ml-2">Signal</span>
-        {(["now", "wait", "avoid"] as const).map((t) => {
-          const label = entryTimingLabel[t];
-          return (
+        <div className="mt-4 flex flex-wrap items-center gap-2 gap-y-3">
+          {sectors.length > 0 && (
+            <>
+              <span className="text-xs font-medium text-stone-500">Sector</span>
+              <select
+                value={sector ?? ""}
+                onChange={(e) => setSectorFilter(e.target.value || null)}
+                className="rounded-xl border border-stone-200 bg-white px-3 py-1.5 text-sm text-stone-800 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20"
+              >
+                <option value="">All sectors</option>
+                {sectors.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
+          <span className="text-xs font-medium text-stone-500 sm:ml-2">Signal</span>
+          {(["now", "wait", "avoid"] as const).map((t) => {
+            const label = entryTimingLabel[t];
+            return (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setFilter("entry_timing", entry_timing === t ? null : t)}
+                className={`rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
+                  entry_timing === t ? "bg-teal-600 text-white" : "bg-stone-100 text-stone-600 hover:bg-stone-200"
+                }`}
+              >
+                {label}
+              </button>
+            );
+          })}
+          <span className="ml-2 text-xs font-medium text-stone-500 sm:ml-4">Risk</span>
+          {(["low", "moderate", "high"] as const).map((t) => (
             <button
               key={t}
               type="button"
-              onClick={() => setFilter("entry_timing", entry_timing === t ? null : t)}
+              onClick={() => setFilter("risk_tier", risk_tier === t ? null : t)}
               className={`rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
-                entry_timing === t ? "bg-teal-600 text-white" : "bg-stone-100 text-stone-600 hover:bg-stone-200"
+                risk_tier === t ? "bg-teal-600 text-white" : "bg-stone-100 text-stone-600 hover:bg-stone-200"
               }`}
             >
-              {label}
+              {riskTierLabel[t]}
             </button>
-          );
-        })}
-        <span className="ml-2 text-xs font-medium text-stone-500 sm:ml-4">Risk</span>
-        {(["low", "moderate", "high"] as const).map((t) => (
-          <button
-            key={t}
-            type="button"
-            onClick={() => setFilter("risk_tier", risk_tier === t ? null : t)}
-            className={`rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
-              risk_tier === t ? "bg-teal-600 text-white" : "bg-stone-100 text-stone-600 hover:bg-stone-200"
-            }`}
-          >
-            {riskTierLabel[t]}
-          </button>
-        ))}
+          ))}
+        </div>
       </div>
 
       {error && (
