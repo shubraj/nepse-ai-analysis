@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../api/client";
-import { updatePageMeta, addJsonLd, createBreadcrumbSchema } from "../lib/seo";
+import { updatePageMeta, addJsonLd, createBreadcrumbSchema, createWebPageSchema, toAbsoluteUrl } from "../lib/seo";
 import type { Company } from "../types/company";
 import { getRiskTier, getSignal, riskTierLabel, signalLabel } from "../lib/screening";
 import type { RiskTier, Signal } from "../lib/screening";
@@ -242,7 +242,7 @@ export function Compare() {
 
   // SEO: compare page meta
   useEffect(() => {
-    const title = "Compare NEPSE Stocks – Side-by-Side Stock Analysis | NEPSE Research";
+    const title = "Compare NEPSE Stocks – Side-by-Side Stock Analysis | NepseAI";
     const description =
       "Compare two NEPSE-listed stocks side by side by price, valuation, risk, return potential, and outlook. AI-based analysis, not investment advice.";
 
@@ -256,9 +256,18 @@ export function Compare() {
 
     addJsonLd(
       createBreadcrumbSchema([
-        { name: "Home", url: `${window.location.origin}/` },
+        { name: "NepseAI", url: `${window.location.origin}/` },
         { name: "Compare", url: `${window.location.origin}/compare` },
       ])
+    );
+
+    addJsonLd(
+      createWebPageSchema({
+        title,
+        description,
+        url: `${window.location.origin}/compare`,
+        image: toAbsoluteUrl("/og-image.svg"),
+      })
     );
   }, []);
 
@@ -303,8 +312,10 @@ export function Compare() {
   return (
     <div className="space-y-8">
       <header>
-        <h1 className="font-display text-2xl font-semibold text-stone-900">Compare companies</h1>
-        <p className="mt-1 text-sm text-stone-500">Side-by-side metrics and outlook for two NEPSE stocks. Better values are highlighted.</p>
+        <h1 className="font-display text-2xl font-semibold text-stone-900">Compare NEPSE Stocks</h1>
+        <p className="mt-1 text-sm text-stone-500">
+          Compare two NEPSE companies side by side across valuation, risk, return potential, and AI outlook to support faster research decisions.
+        </p>
       </header>
 
       <form onSubmit={handleSubmit} className="rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm">

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api/client";
 import { useWatchlist } from "../contexts/WatchlistContext";
-import { updatePageMeta, addJsonLd, createBreadcrumbSchema } from "../lib/seo";
+import { updatePageMeta, addJsonLd, createBreadcrumbSchema, createWebPageSchema, toAbsoluteUrl } from "../lib/seo";
 import type {
   Company,
   MarketSentimentResponse,
@@ -101,12 +101,12 @@ export function Dashboard() {
   const [suggestLoading, setSuggestLoading] = useState(false);
   const [suggestError, setSuggestError] = useState<string | null>(null);
 
-  // SEO: home page meta and schema
+  // SEO: root page meta and schema
   useEffect(() => {
     updatePageMeta({
-      title: "NEPSE Research Dashboard - Free AI NEPSE Stock Analysis | Nepal Stock Market",
-      description: "NEPSE stock analysis dashboard with Buy/Hold/Sell signals, market sentiment, sector performance, top stock picks and AI-powered investment ideas for Nepal stock market. Updated daily.",
-      keywords: "NEPSE stocks, Nepal stock market, AI stock analysis, buy sell NEPSE, NEPSE buy hold sell, market sentiment, NEPSE dashboard, Nepal stock recommendations, NEPSE today",
+      title: "NepseAI - Free AI NEPSE Stock Analysis | Nepal Stock Market",
+      description: "NEPSE stock analysis with Buy/Hold/Sell signals, market sentiment, sector performance, top stock picks and AI-powered investment ideas for Nepal stock market. Updated daily.",
+      keywords: "NEPSE stocks, Nepal stock market, AI stock analysis, buy sell NEPSE, NEPSE buy hold sell, market sentiment, Nepal stock recommendations, NEPSE today",
       url: `${window.location.origin}/`,
       canonicalUrl: `${window.location.origin}/`,
     });
@@ -114,8 +114,18 @@ export function Dashboard() {
     // Add breadcrumb schema
     addJsonLd(
       createBreadcrumbSchema([
-        { name: "Home", url: `${window.location.origin}/` },
+        { name: "NepseAI", url: `${window.location.origin}/` },
       ])
+    );
+
+    addJsonLd(
+      createWebPageSchema({
+        title: "NepseAI - Free AI NEPSE Stock Analysis | Nepal Stock Market",
+        description:
+          "NEPSE stock analysis with Buy/Hold/Sell signals, market sentiment, sector performance, top stock picks and AI-powered investment ideas for Nepal stock market. Updated daily.",
+        url: `${window.location.origin}/`,
+        image: toAbsoluteUrl("/og-image.svg"),
+      })
     );
   }, []);
 
@@ -198,9 +208,9 @@ export function Dashboard() {
         <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-400">Nepal stock research</p>
-            <h1 className="mt-2 font-display text-3xl font-bold text-stone-900 sm:text-4xl">NEPSE Research Dashboard</h1>
+            <h1 className="mt-2 font-display text-3xl font-bold text-stone-900 sm:text-4xl">NepseAI</h1>
             <p className="mt-3 max-w-2xl text-base text-stone-600">
-              AI-powered fundamental analysis, risk assessment, and investment recommendations for Nepal stock market companies.
+              AI-powered NEPSE research hub with structured company analysis, risk signals, and sector-level market context for better-informed investing.
             </p>
             <p className="mt-2 max-w-xl text-xs text-stone-500">
               Historical data analysis for informational purposes. Not professional investment advice.

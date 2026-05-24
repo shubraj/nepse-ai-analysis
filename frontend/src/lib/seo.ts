@@ -2,6 +2,13 @@
  * SEO utilities for managing dynamic meta tags, schemas, and Open Graph data
  */
 
+const SITE_URL_FALLBACK = "https://nepseai.shubraj.com";
+const configuredSiteUrl = (import.meta.env.VITE_SITE_URL as string | undefined)?.trim();
+export const SITE_URL = (configuredSiteUrl && configuredSiteUrl.length > 0 ? configuredSiteUrl : SITE_URL_FALLBACK).replace(/\/+$/, "");
+export const SITE_NAME = "NepseAI";
+export const DEFAULT_OG_IMAGE_URL = `${SITE_URL}/og-image.svg`;
+export const DEFAULT_LOGO_URL = `${SITE_URL}/logo.svg`;
+
 export interface PageMeta {
   title: string;
   description: string;
@@ -18,6 +25,15 @@ export interface BreadcrumbItem {
   url: string;
 }
 
+export const DEFAULT_PAGE_META: PageMeta = {
+  title: "NepseAI - Free AI NEPSE Stock Analysis & Screener | Nepal Stock Market",
+  description:
+    "Free AI-powered NEPSE stock analysis and screener for the Nepal stock market. Informational only, not investment advice.",
+  canonicalUrl: `${SITE_URL}/`,
+  image: DEFAULT_OG_IMAGE_URL,
+  imageAlt: `${SITE_NAME} - AI-powered NEPSE stock analysis`,
+};
+
 /**
  * Update page meta tags dynamically
  */
@@ -33,18 +49,21 @@ export function updatePageMeta(meta: PageMeta) {
 
   updateMetaTag('property', 'og:title', meta.title);
   updateMetaTag('property', 'og:description', meta.description);
+  updateMetaTag('property', 'og:type', meta.type || 'website');
   if (meta.image) {
     updateMetaTag('property', 'og:image', meta.image);
     updateMetaTag('property', 'og:image:alt', meta.imageAlt || meta.title);
   }
 
+  updateMetaTag('name', 'twitter:card', 'summary_large_image');
   updateMetaTag('name', 'twitter:title', meta.title);
   updateMetaTag('name', 'twitter:description', meta.description);
   if (meta.image) {
     updateMetaTag('name', 'twitter:image', meta.image);
   }
 
-  const canonicalUrl = meta.canonicalUrl || meta.url || window.location.href;
+  const rawCanonical = meta.canonicalUrl || meta.url || window.location.href;
+  const canonicalUrl = toAbsoluteUrl(rawCanonical).split("#")[0];
   updateCanonicalLink(canonicalUrl);
   updateMetaTag('property', 'og:url', canonicalUrl);
 }
@@ -78,20 +97,73 @@ export function addJsonLd(data: Record<string, unknown>) {
     script.setAttribute('data-seo', id);
     document.head.appendChild(script);
   }
+  script.setAttribute('data-seo-type', String(data['@type'] || 'generic'));
   script.textContent = JSON.stringify(data);
+}
+
+export function clearJsonLd(types?: string[]) {
+  const scripts = Array.from(document.querySelectorAll('script[data-seo]')) as HTMLScriptElement[];
+  scripts.forEach((script) => {
+    if (!types || types.length === 0) {
+      script.remove();
+      return;
+    }
+    const t = script.getAttribute('data-seo-type');
+    if (t && types.includes(t)) {
+      script.remove();
+    }
+  });
+}
+
+export function resetPageMeta() {
+  updatePageMeta(DEFAULT_PAGE_META);
+}
+
+export function toAbsoluteUrl(urlOrPath: string) {
+  if (/^https?:\/\//i.test(urlOrPath)) return urlOrPath;
+  if (typeof window !== 'undefined') {
+    try {
+      return new URL(urlOrPath, window.location.origin).toString();
+    } catch {
+      return `${SITE_URL}${urlOrPath.startsWith('/') ? '' : '/'}${urlOrPath}`;
+    }
+  }
+  return `${SITE_URL}${urlOrPath.startsWith('/') ? '' : '/'}${urlOrPath}`;
 }
 
 export function createOrganizationSchema(overrides?: Record<string, unknown>) {
   return {
     '@context': 'https://schema.org',
     '@type': 'Organization',
-    name: 'NEPSE Research',
-    url: 'https://nepseai.shubraj.com',
-    logo: 'https://nepseai.shubraj.com/logo.png',
+    name: SITE_NAME,
+    url: `${SITE_URL}/`,
+    logo: DEFAULT_LOGO_URL,
     description:
       'Free AI-powered NEPSE stock analysis platform. Get buy/hold/sell signals, fundamental analysis, risk tiers, valuations and investment recommendations for Nepal stock market companies.',
     sameAs: ['https://twitter.com/nepseResearch'],
     areaServed: { '@type': 'Country', name: 'Nepal' },
+    ...overrides,
+  };
+}
+
+export function createLocalBusinessSchema(overrides?: Record<string, unknown>) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'LocalBusiness',
+    name: SITE_NAME,
+    url: `${SITE_URL}/`,
+    image: DEFAULT_LOGO_URL,
+    description:
+      'AI-powered stock analysis and screening platform for NEPSE-listed companies in Nepal.',
+    address: {
+      '@type': 'PostalAddress',
+      addressLocality: 'Kathmandu',
+      addressCountry: 'NP',
+    },
+    areaServed: {
+      '@type': 'Country',
+      name: 'Nepal',
+    },
     ...overrides,
   };
 }
@@ -138,19 +210,19 @@ export function createArticleSchema(data: {
     '@type': 'Article',
     headline: data.headline,
     description: data.description,
-    image: data.image || 'https://nepseai.shubraj.com/og-image.png',
+    image: data.image || DEFAULT_OG_IMAGE_URL,
     datePublished: data.datePublished || new Date().toISOString(),
     dateModified: data.dateModified || new Date().toISOString(),
     author: {
       '@type': 'Organization',
-      name: data.author || 'NEPSE Research',
-      url: 'https://nepseai.shubraj.com',
+      name: data.author || SITE_NAME,
+      url: `${SITE_URL}/`,
     },
     keywords: data.keywords,
     publisher: {
       '@type': 'Organization',
-      name: 'NEPSE Research',
-      url: 'https://nepseai.shubraj.com',
+      name: SITE_NAME,
+      url: `${SITE_URL}/`,
     },
   };
 }
@@ -169,18 +241,46 @@ export function createStockSchema(data: {
     name: `${data.symbol}: ${data.name} - NEPSE Stock`,
     description: data.description,
     url: data.url,
-    image: data.image || 'https://nepseai.shubraj.com/og-image.png',
+    image: data.image || DEFAULT_OG_IMAGE_URL,
     category: data.sector || 'Nepal Stock',
     provider: {
       '@type': 'Organization',
-      name: 'NEPSE Research',
-      url: 'https://nepseai.shubraj.com',
+      name: SITE_NAME,
+      url: `${SITE_URL}/`,
     },
     areaServed: { '@type': 'Country', name: 'Nepal' },
     subjectOf: {
       '@type': 'FinancialProductCategory',
       name: 'NEPSE Listed Stocks',
       description: 'Stocks listed on the Nepal Stock Exchange (NEPSE)',
+    },
+  };
+}
+
+export function createProductSchema(data: {
+  symbol: string;
+  name: string;
+  description: string;
+  url: string;
+  image?: string;
+}) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: `${data.symbol}: ${data.name} NEPSE Stock Analysis`,
+    description: data.description,
+    image: data.image || DEFAULT_OG_IMAGE_URL,
+    brand: {
+      '@type': 'Brand',
+      name: SITE_NAME,
+    },
+    category: 'Financial analysis',
+    offers: {
+      '@type': 'Offer',
+      url: data.url,
+      price: '0',
+      priceCurrency: 'NPR',
+      availability: 'https://schema.org/InStock',
     },
   };
 }
@@ -197,11 +297,11 @@ export function createWebPageSchema(data: {
     name: data.title,
     description: data.description,
     url: data.url,
-    image: data.image || 'https://nepseai.shubraj.com/og-image.png',
+    image: data.image || DEFAULT_OG_IMAGE_URL,
     publisher: {
       '@type': 'Organization',
-      name: 'NEPSE Research',
-      url: 'https://nepseai.shubraj.com',
+      name: SITE_NAME,
+      url: `${SITE_URL}/`,
     },
   };
 }

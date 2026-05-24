@@ -2,7 +2,18 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api } from "../api/client";
 import { useWatchlist } from "../contexts/WatchlistContext";
-import { updatePageMeta, addJsonLd, createBreadcrumbSchema, createArticleSchema, createStockSchema } from "../lib/seo";
+import {
+  updatePageMeta,
+  addJsonLd,
+  clearJsonLd,
+  createBreadcrumbSchema,
+  createArticleSchema,
+  createProductSchema,
+  createStockSchema,
+  createWebPageSchema,
+  resetPageMeta,
+  toAbsoluteUrl,
+} from "../lib/seo";
 import type {
   Company,
 } from "../types/company";
@@ -14,27 +25,26 @@ import {
 } from "../lib/screening";
 import type { RiskTier, Signal } from "../lib/screening";
 
-const DEFAULT_DOC_TITLE = "NEPSE Research – NEPSE Stock AI Analysis";
-const DEFAULT_META_DESCRIPTION =
-  "Free AI-powered NEPSE stock analysis and screener for the Nepal stock market. Informational only, not investment advice.";
-
 function setPageMeta(company: Company) {
-  const title = `${company.symbol} Stock Analysis - Buy, Hold, Sell &amp; Risk | NEPSE Research`;
+  const title = `${company.symbol} Stock Analysis - Buy, Hold, Sell & Risk | NepseAI`;
   const description = `AI-powered NEPSE analysis of ${company.symbol} (${company.name}). Get Buy, Hold, Sell signal, risk tier, valuation, PE ratio, dividend history and outlook for ${company.symbol} on Nepal Stock Exchange. Updated daily.`;
+  const pageUrl = `${window.location.origin}/company/${company.symbol}`;
 
   updatePageMeta({
     title,
     description,
     keywords: `${company.symbol}, ${company.name}, NEPSE analysis, Nepal stock, ${company.sector || ""}, ${company.symbol} stock price, ${company.symbol} investment, Nepal stock exchange`,
-    url: `/company/${company.symbol}`,
-    canonicalUrl: `${window.location.origin}/company/${company.symbol}`,
-    image: undefined,
+    url: pageUrl,
+    canonicalUrl: pageUrl,
+    image: toAbsoluteUrl("/og-image.svg"),
+    imageAlt: `${company.symbol} stock analysis dashboard`,
+    type: "article",
   });
 
   // Add breadcrumb schema
   addJsonLd(
     createBreadcrumbSchema([
-      { name: "Home", url: `${window.location.origin}/` },
+      { name: "NepseAI", url: `${window.location.origin}/` },
       { name: "Screener", url: `${window.location.origin}/companies` },
       { name: `${company.symbol} Analysis`, url: `${window.location.origin}/company/${company.symbol}` },
     ])
@@ -47,7 +57,7 @@ function setPageMeta(company: Company) {
       description,
       datePublished: company.created_at,
       dateModified: company.updated_at,
-      author: "NEPSE Research",
+      author: "NepseAI",
       keywords: `${company.symbol}, ${company.sector || "Nepal stocks"}, NEPSE analysis`,
     })
   );
@@ -59,27 +69,28 @@ function setPageMeta(company: Company) {
       name: company.name,
       sector: company.sector || undefined,
       description,
-      url: `${window.location.origin}/company/${company.symbol}`,
+      url: pageUrl,
     })
   );
-}
 
-function resetPageMeta() {
-  document.title = DEFAULT_DOC_TITLE;
-  const descEl = document.querySelector('meta[name="description"]');
-  if (descEl) descEl.setAttribute("content", DEFAULT_META_DESCRIPTION);
-  const ogTitle = document.querySelector('meta[property="og:title"]');
-  if (ogTitle) ogTitle.setAttribute("content", DEFAULT_DOC_TITLE);
-  const ogDesc = document.querySelector('meta[property="og:description"]');
-  if (ogDesc) ogDesc.setAttribute("content", DEFAULT_META_DESCRIPTION);
-  const twTitle = document.querySelector('meta[name="twitter:title"]');
-  if (twTitle) twTitle.setAttribute("content", DEFAULT_DOC_TITLE);
-  const twDesc = document.querySelector('meta[name="twitter:description"]');
-  if (twDesc) twDesc.setAttribute("content", DEFAULT_META_DESCRIPTION);
-  const ogUrl = document.querySelector('meta[property="og:url"]');
-  if (ogUrl) ogUrl.setAttribute("content", "https://nepseai.shubraj.com/");
-  const canonical = document.querySelector('link[rel="canonical"]');
-  if (canonical) canonical.setAttribute("href", "https://nepseai.shubraj.com/");
+  addJsonLd(
+    createProductSchema({
+      symbol: company.symbol,
+      name: company.name,
+      description,
+      url: pageUrl,
+      image: toAbsoluteUrl("/og-image.svg"),
+    })
+  );
+
+  addJsonLd(
+    createWebPageSchema({
+      title,
+      description,
+      url: pageUrl,
+      image: toAbsoluteUrl("/og-image.svg"),
+    })
+  );
 }
 
 const OVERVIEW_LABELS: Record<string, string> = {
@@ -492,7 +503,10 @@ export function CompanyDetail() {
     if (company) {
       setPageMeta(company);
     }
-    return resetPageMeta;
+    return () => {
+      clearJsonLd(["Article", "FinancialProduct", "Product", "WebPage", "BreadcrumbList"]);
+      resetPageMeta();
+    };
   }, [company]);
 
   const analysisToShow = company?.analysis ?? null;
@@ -599,7 +613,11 @@ export function CompanyDetail() {
           </div>
         )}
         <p className="mt-1 text-sm text-stone-500">
-          {company.sector ?? "N/A"}
+          {company.sector ? (
+            <Link to={`/companies?sector=${encodeURIComponent(company.sector)}`} className="hover:text-teal-700 hover:underline">
+              {company.sector}
+            </Link>
+          ) : "N/A"}
           <span className="mx-2 text-stone-300">·</span>
           Data as of {new Date(company.updated_at).toLocaleDateString(undefined, { dateStyle: "medium" })}
         </p>

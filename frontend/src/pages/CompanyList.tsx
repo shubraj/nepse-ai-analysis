@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../api/client";
-import { updatePageMeta, addJsonLd, createBreadcrumbSchema } from "../lib/seo";
+import { updatePageMeta, addJsonLd, createBreadcrumbSchema, createWebPageSchema, toAbsoluteUrl } from "../lib/seo";
 import type { Company } from "../types/company";
 import {
   getRiskTier,
@@ -31,7 +31,7 @@ export function CompanyList() {
   useEffect(() => {
     const riskLabel = risk_tier ? ` – ${risk_tier}` : "";
     const sectorLabel = sector ? ` – ${sector}` : "";
-    const title = `NEPSE Stock Screener${sectorLabel}${riskLabel} | Filter Nepal Stocks by Buy/Hold/Sell | NEPSE Research`;
+    const title = `NEPSE Stock Screener${sectorLabel}${riskLabel} | Filter Nepal Stocks by Buy/Hold/Sell | NepseAI`;
     const description = `Filter and screen NEPSE stocks with Buy, Hold, Sell signals, risk tier, sector and entry timing. AI-powered fundamental analysis for Nepal stock market screening. Find the best NEPSE stocks to invest in.`;
 
     updatePageMeta({
@@ -45,9 +45,18 @@ export function CompanyList() {
     // Add breadcrumb schema
     addJsonLd(
       createBreadcrumbSchema([
-        { name: "Home", url: `${window.location.origin}/` },
+        { name: "NepseAI", url: `${window.location.origin}/` },
         { name: "Screener", url: `${window.location.origin}/companies` },
       ])
+    );
+
+    addJsonLd(
+      createWebPageSchema({
+        title,
+        description,
+        url: `${window.location.origin}/companies`,
+        image: toAbsoluteUrl("/og-image.svg"),
+      })
     );
   }, [risk_tier, sector]);
 
@@ -101,7 +110,9 @@ export function CompanyList() {
     <div className="space-y-6">
       <header>
         <h1 className="font-display text-3xl font-bold text-stone-900">NEPSE Stock Screener</h1>
-        <p className="mt-2 text-base text-stone-600">Filter by recommendation and risk. AI analysis based on historical data – not professional investment advice.</p>
+        <p className="mt-2 text-base text-stone-600">
+          Screen Nepal stocks by Buy/Hold/Sell signal, risk tier, and sector using AI-assisted analysis grounded in historical market and fundamentals data.
+        </p>
       </header>
 
       <div className="flex flex-wrap gap-3">

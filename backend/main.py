@@ -20,7 +20,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="NEPSE Research API", lifespan=lifespan)
+app = FastAPI(title="NepseAI API", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_CORS_ORIGINS or ["http://localhost:5173", "http://127.0.0.1:5173"],

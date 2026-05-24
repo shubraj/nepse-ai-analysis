@@ -36,11 +36,11 @@ function App() {
           <div className="mx-auto flex max-w-5xl items-center gap-1 px-4 py-2.5">
             <Link
               to="/"
+              aria-label="Go to NepseAI"
               className="font-display text-lg font-semibold tracking-tight text-stone-900 hover:text-teal-700 transition-colors mr-auto sm:mr-3"
             >
-              NEPSE Research
+              NepseAI
             </Link>
-            <NavItem to="/" end>Dashboard</NavItem>
             <NavItem to="/companies">Screener</NavItem>
             <NavItem to="/compare">Compare</NavItem>
           </div>
@@ -58,7 +58,7 @@ function App() {
         <footer className="border-t border-stone-200/60 bg-stone-50/80" role="contentinfo">
           <div className="mx-auto max-w-5xl px-4 py-4 space-y-3">
             <div className="flex flex-col gap-2 text-center sm:flex-row sm:items-center sm:justify-between sm:text-left">
-              <p className="text-center text-xs text-stone-400 sm:text-left">&copy; {new Date().getFullYear()} NEPSE Research</p>
+              <p className="text-center text-xs text-stone-400 sm:text-left">&copy; {new Date().getFullYear()} NepseAI</p>
               <ViewCounter />
             </div>
             <div className="border-t border-stone-200/60 pt-3">

@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">NepseAI - AI stock analysis for Nepal market</title>
+  <desc id="desc">Social sharing image for NepseAI showing a market trend chart and product title.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#042f2e"/>
+      <stop offset="100%" stop-color="#134e4a"/>
+    </linearGradient>
+    <linearGradient id="line" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#5eead4"/>
+      <stop offset="100%" stop-color="#ccfbf1"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect x="64" y="64" width="1072" height="502" rx="32" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.10)"/>
+  <path d="M140 430l140-110 120 68 136-190 116 82 132-126 134 92" fill="none" stroke="url(#line)" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+  <g fill="#99f6e4">
+    <circle cx="140" cy="430" r="8"/>
+    <circle cx="280" cy="320" r="8"/>
+    <circle cx="400" cy="388" r="8"/>
+    <circle cx="536" cy="198" r="8"/>
+    <circle cx="652" cy="280" r="8"/>
+    <circle cx="784" cy="154" r="8"/>
+    <circle cx="918" cy="246" r="8"/>
+  </g>
+  <text x="140" y="520" fill="#f8fafc" font-family="DM Sans, system-ui, sans-serif" font-size="64" font-weight="700">
+    NepseAI
+  </text>
+  <text x="140" y="565" fill="#ccfbf1" font-family="DM Sans, system-ui, sans-serif" font-size="30" font-weight="500">
+    Free AI-powered NEPSE stock analysis and screener
+  </text>
+</svg>

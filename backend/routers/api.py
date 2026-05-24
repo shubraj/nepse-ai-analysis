@@ -31,7 +31,13 @@ def _escape_loc(loc: str) -> str:
     return html.escape(loc, quote=True)
 
 
-def _sitemap_xml(symbols: list[str]) -> str:
+def _format_lastmod(dt: datetime | None) -> str:
+    if not dt:
+        return datetime.utcnow().date().isoformat()
+    return dt.date().isoformat()
+
+
+def _sitemap_xml(companies: list[tuple[str, datetime | None]]) -> str:
     lines = [
         '<?xml version="1.0" encoding="UTF-8"?>',
         '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
@@ -39,11 +45,19 @@ def _sitemap_xml(symbols: list[str]) -> str:
     for loc, changefreq, priority in [
         (f"{SITE_URL}/", "daily", "1.0"),
         (f"{SITE_URL}/companies", "daily", "0.9"),
+        (f"{SITE_URL}/compare", "weekly", "0.7"),
     ]:
-        lines.append(f"  <url><loc>{_escape_loc(loc)}</loc><changefreq>{changefreq}</changefreq><priority>{priority}</priority></url>")
-    for symbol in symbols:
+        lines.append(
+            f"  <url><loc>{_escape_loc(loc)}</loc><lastmod>{_format_lastmod(None)}</lastmod>"
+            f"<changefreq>{changefreq}</changefreq><priority>{priority}</priority></url>"
+        )
+    for symbol, updated_at in companies:
         loc = f"{SITE_URL}/company/{symbol}"
-        lines.append(f"  <url><loc>{_escape_loc(loc)}</loc><changefreq>daily</changefreq><priority>0.8</priority></url>")
+        lastmod = _format_lastmod(updated_at)
+        lines.append(
+            f"  <url><loc>{_escape_loc(loc)}</loc><lastmod>{lastmod}</lastmod>"
+            "<changefreq>daily</changefreq><priority>0.8</priority></url>"
+        )
     lines.append("</urlset>")
     return "\n".join(lines)
 
@@ -78,8 +92,8 @@ def get_sitemap(db: Session = Depends(get_db)):
     cached = cache_get(cache_key)
     if cached is not None:
         return Response(content=cached, media_type="application/xml")
-    symbols = [r[0] for r in db.query(Company.symbol).order_by(Company.symbol).all()]
-    xml_body = _sitemap_xml(symbols)
+    companies = db.query(Company.symbol, Company.updated_at).order_by(Company.symbol).all()
+    xml_body = _sitemap_xml(companies)
     cache_set(cache_key, xml_body)
     return Response(content=xml_body, media_type="application/xml")
 
