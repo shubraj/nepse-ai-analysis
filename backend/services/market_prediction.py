@@ -25,7 +25,7 @@ Input data:
 - Top losers today: {top_losers}
 - Breadth score: {breadth_score:.2f}
 - Recent trend score: {trend_score:.2f}
-
+{news_section}
 Output JSON:
 {{
   "sentiment": "bullish|bearish|neutral",
@@ -44,6 +44,7 @@ Rules:
 - key_factors: 2-3 key factors driving prediction, based only on the input data
 - summary: brief prediction in plain language (max 150 chars)
 - If the market is mixed, prefer neutral/flat instead of forcing a strong call.
+- Factor recent news events (floods, political events, NRB decisions) into your sentiment and key_factors.
 
 Return valid JSON only."""
 
@@ -118,6 +119,16 @@ def generate_market_prediction(db: Session) -> dict[str, Any]:
 
     context = _build_market_context(db)
 
+    try:
+        from services.news_service import NewsService
+        headlines = NewsService.get_recent_headlines(db, days=7, limit=10)
+        if headlines:
+            news_section = "- Recent Nepal market news:\n" + "\n".join(f"  * {h}" for h in headlines) + "\n"
+        else:
+            news_section = ""
+    except Exception:
+        news_section = ""
+
     prompt = _PREDICTION_PROMPT.format(
         total_stocks=context["total_stocks"],
         avg_pct_change=context["avg_pct_change"],
@@ -127,6 +138,7 @@ def generate_market_prediction(db: Session) -> dict[str, Any]:
         trend_score=context["trend_score"],
         top_gainers=json.dumps(context["top_gainers"]),
         top_losers=json.dumps(context["top_losers"]),
+        news_section=news_section,
     )
 
     try:

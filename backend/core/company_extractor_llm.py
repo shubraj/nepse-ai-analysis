@@ -80,7 +80,11 @@ Return ONLY valid JSON — no markdown fences — with exactly these fields:
 Be conservative and evidence-based. Use only the provided numbers."""
 
 
-def _build_user_prompt(raw_detail: dict[str, Any], scores: dict[str, Any]) -> str:
+def _build_user_prompt(
+    raw_detail: dict[str, Any],
+    scores: dict[str, Any],
+    sector_headlines: list[str] | None = None,
+) -> str:
     overview = raw_detail.get("overview") or {}
     about = raw_detail.get("about") or {}
     dividends = raw_detail.get("dividend_history") or []
@@ -109,6 +113,10 @@ def _build_user_prompt(raw_detail: dict[str, Any], scores: dict[str, Any]) -> st
         f"Return potential: {inv.get('return_potential_numeric')}/10 | Confidence: {fin.get('confidence_score_numeric')}/10",
         f"Dividends: {div_years} year(s) of history",
     ]
+    if sector_headlines:
+        lines.append("Recent sector/macro news (factor into risks and strategy):")
+        for h in sector_headlines[:5]:
+            lines.append(f"  - {h}")
     return "\n".join(lines)
 
 
@@ -226,16 +234,26 @@ class CompanyExtractorLLM:
         scores["final_decision"]["summary_verdict"] = _clean(text.get("summary_verdict"))
         return scores
 
-    def extract_from_raw_detail(self, raw_detail: dict[str, Any]) -> dict[str, Any]:
+    def extract_from_raw_detail(self, raw_detail: dict[str, Any], db=None) -> dict[str, Any]:
         symbol = (raw_detail.get("symbol") or "").upper()
         logger.info("Scoring %s", symbol)
 
         # Phase 1: local rules — free, instant
         scores = compute_scores_from_raw(raw_detail)
 
+        # Fetch sector-relevant news headlines if a DB session is provided
+        sector_headlines: list[str] = []
+        if db is not None:
+            try:
+                from services.news_service import NewsService
+                sector = scores.get("sector") or ""
+                sector_headlines = NewsService.get_sector_headlines(db, sector, days=7, limit=5)
+            except Exception:
+                pass
+
         # Phase 2: LLM for text commentary only (~400 tokens total)
         try:
-            user_prompt = _build_user_prompt(raw_detail, scores)
+            user_prompt = _build_user_prompt(raw_detail, scores, sector_headlines or None)
             text = self._get_text_fields(user_prompt)
             scores = self._merge_text_into_scores(scores, text)
             logger.info("Text fields generated for %s", symbol)

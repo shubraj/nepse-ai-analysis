@@ -25,4 +25,8 @@ app.conf.beat_schedule = {
         "task": "tasks.run_all_companies_sync",
         "schedule": crontab(hour=0, minute=0),
     },
+    "sync-news": {
+        "task": "tasks.sync_news",
+        "schedule": crontab(minute=0, hour="*/6"),
+    },
 }

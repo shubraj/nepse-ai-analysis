@@ -61,7 +61,7 @@ class ExtractorService:
                 else:
                     try:
                         extractor = CompanyExtractorLLM()
-                        company.analysis = extractor.extract_from_raw_detail(raw)
+                        company.analysis = extractor.extract_from_raw_detail(raw, db=db)
                         company.analysis_hash = new_hash
                         _append_analysis_record(db, company.id, company.analysis)
                     except Exception:
@@ -74,7 +74,7 @@ class ExtractorService:
         if run_analysis:
             try:
                 extractor = CompanyExtractorLLM()
-                analysis = extractor.extract_from_raw_detail(raw)
+                analysis = extractor.extract_from_raw_detail(raw, db=db)
             except Exception:
                 pass
         company = Company(symbol=symbol, name=name, sector=sector, raw_detail=raw, analysis=analysis, analysis_hash=new_hash if analysis else None)

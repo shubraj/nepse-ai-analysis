@@ -62,13 +62,14 @@ def init_db():
 
 def _migrate() -> None:
     """Apply additive schema changes that create_all won't add to existing tables."""
+    from sqlalchemy import text
+    stmts = [
+        "ALTER TABLE companies ADD COLUMN IF NOT EXISTS analysis_hash VARCHAR(16)",
+    ]
     with engine.connect() as conn:
-        try:
-            conn.execute(
-                __import__("sqlalchemy").text(
-                    "ALTER TABLE companies ADD COLUMN IF NOT EXISTS analysis_hash VARCHAR(16)"
-                )
-            )
-            conn.commit()
-        except Exception:
-            conn.rollback()
+        for stmt in stmts:
+            try:
+                conn.execute(text(stmt))
+                conn.commit()
+            except Exception:
+                conn.rollback()

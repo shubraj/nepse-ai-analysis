@@ -6,8 +6,9 @@ from cache import invalidate_all
 from celery_app import app
 from core.client import MerolaganiClient
 from database import SessionLocal, init_db
-from models import Company, CompanyAnalysis  # noqa: F401 - register mappers
+from models import Company, CompanyAnalysis, NewsItem  # noqa: F401 - register mappers
 from services.extractor_service import ExtractorService
+from services.news_service import NewsService
 
 logger = logging.getLogger(__name__)
 
@@ -45,4 +46,17 @@ def run_all_companies_sync(self):
         db.close()
 
 
-
+@app.task(bind=True, name="tasks.sync_news")
+def sync_news(self):
+    """Scrape Nepal financial news and store new headlines."""
+    init_db()
+    db = SessionLocal()
+    try:
+        service = NewsService()
+        count = service.fetch_and_store(db)
+        return {"new_items": count}
+    except Exception as e:
+        logger.warning("News sync failed: %s", e)
+        return {"new_items": 0, "error": str(e)}
+    finally:
+        db.close()
