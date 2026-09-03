@@ -18,14 +18,12 @@ logger = logging.getLogger(__name__)
 
 
 def _financial_hash(raw_detail: dict[str, Any]) -> str:
-    """Short hash of the fields that drive LLM analysis. Unchanged data → same hash → skip LLM."""
+    """Hash of fundamentals that drive analysis. Excludes market_price — daily price
+    moves don't change the structural valuation call; EPS/BV/dividends update quarterly."""
     overview = raw_detail.get("overview") or {}
     key = {
-        "market_price": overview.get("market_price"),
         "eps": overview.get("eps"),
-        "pe": overview.get("p_e_ratio") or overview.get("pe_ratio"),
         "bv": overview.get("book_value"),
-        "pbv": overview.get("pbv"),
         "div": raw_detail.get("dividend_history"),
         "bonus": raw_detail.get("bonus_history"),
     }
