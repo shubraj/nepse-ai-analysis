@@ -19,6 +19,7 @@ class Company(Base):
     sector: Mapped[str | None] = mapped_column(String(255), nullable=True)
     raw_detail: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     analysis: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    analysis_hash: Mapped[str | None] = mapped_column(String(16), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

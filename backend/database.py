@@ -57,3 +57,18 @@ def _ensure_database_exists() -> None:
 def init_db():
     _ensure_database_exists()
     Base.metadata.create_all(bind=engine)
+    _migrate()
+
+
+def _migrate() -> None:
+    """Apply additive schema changes that create_all won't add to existing tables."""
+    with engine.connect() as conn:
+        try:
+            conn.execute(
+                __import__("sqlalchemy").text(
+                    "ALTER TABLE companies ADD COLUMN IF NOT EXISTS analysis_hash VARCHAR(16)"
+                )
+            )
+            conn.commit()
+        except Exception:
+            conn.rollback()
