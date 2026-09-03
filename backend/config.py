@@ -12,7 +12,6 @@ except ImportError:
     pass
 
 BASE_DIR = Path(__file__).resolve().parent
-FORMAT_JSON_PATH = BASE_DIR / "format.json"
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://127.0.0.1:6379/0")
