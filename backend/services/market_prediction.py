@@ -10,10 +10,7 @@ from sqlalchemy.orm import Session
 
 from models.company import Company
 
-try:
-    import ollama
-except ImportError:
-    ollama = None
+from openai import OpenAI
 
 logger = logging.getLogger("market_prediction")
 
@@ -111,17 +108,13 @@ def _build_market_context(db: Session) -> dict[str, Any]:
 
 def generate_market_prediction(db: Session) -> dict[str, Any]:
     """Generate tomorrow's market prediction using AI."""
-    if not ollama:
-        logger.error("ollama not installed")
-        return _fallback_prediction()
-
-    api_key = os.getenv("OLLAMA_API_KEY")
+    api_key = os.getenv("OPENROUTER_API_KEY")
     if not api_key:
-        logger.error("OLLAMA_API_KEY not set")
+        logger.error("OPENROUTER_API_KEY not set")
         return _fallback_prediction()
 
-    model = os.getenv("OLLAMA_MODEL", "kimi-k2.5:cloud")
-    host = os.getenv("OLLAMA_HOST", "https://ollama.com")
+    model = os.getenv("OPENROUTER_MODEL", "google/gemini-flash-1.5")
+    base_url = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
 
     context = _build_market_context(db)
 
@@ -137,27 +130,28 @@ def generate_market_prediction(db: Session) -> dict[str, Any]:
     )
 
     try:
-        client = ollama.Client(host=host)
-        response = client.chat(
+        client = OpenAI(api_key=api_key, base_url=base_url)
+        response = client.chat.completions.create(
             model=model,
             messages=[
                 {
-                    'role': 'system',
-                    'content': 'Return only valid JSON. Be conservative, data-driven, and avoid overconfident market calls.',
+                    "role": "system",
+                    "content": "Return only valid JSON. Be conservative, data-driven, and avoid overconfident market calls.",
                 },
                 {
-                    'role': 'user',
-                    'content': prompt,
-                }
+                    "role": "user",
+                    "content": prompt,
+                },
             ],
-            format='json',
-            stream=False,
-            options={"temperature": 0},
+            temperature=0,
         )
 
-        message = response.get('message', {}) if isinstance(response, dict) else {}
-        text = (message.get('content') if isinstance(message, dict) else getattr(response, 'message', None) and getattr(response.message, 'content', None) or "")
-        text = str(text).strip()
+        text = (response.choices[0].message.content or "").strip()
+        import re
+        if text.startswith("```"):
+            m = re.search(r"```(?:json)?\s*(.*?)\s*```", text, re.DOTALL | re.IGNORECASE)
+            if m:
+                text = m.group(1).strip()
         data = json.loads(text)
 
         # Validate required fields

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Company data extractor via Ollama; output follows format.json."""
+"""Company data extractor via OpenRouter; output follows format.json."""
 
 import json
 import logging
@@ -17,10 +17,7 @@ try:
 except ImportError:
     pass
 
-try:
-    import ollama
-except ImportError:
-    raise ImportError("ollama is required. Install: pip install ollama")
+from openai import OpenAI
 
 from screening_constants import final_decision_from_numerics
 
@@ -254,15 +251,15 @@ def build_schema_from_format(format_dict: dict[str, Any]) -> dict[str, Any]:
 
 
 class CompanyExtractorLLM:
-    def __init__(self, api_key: str | None = None, model: str | None = None, host: str | None = None):
-        self.api_key = api_key or os.getenv("OLLAMA_API_KEY")
+    def __init__(self, api_key: str | None = None, model: str | None = None, base_url: str | None = None):
+        self.api_key = api_key or os.getenv("OPENROUTER_API_KEY")
         if not self.api_key:
             raise ValueError(
-                "Ollama API key required. Set OLLAMA_API_KEY or pass api_key= to CompanyExtractorLLM(api_key=...)"
+                "OpenRouter API key required. Set OPENROUTER_API_KEY or pass api_key= to CompanyExtractorLLM(api_key=...)"
             )
-        self.host = host or os.getenv("OLLAMA_HOST", "https://ollama.com")
-        self.model = model or os.getenv("OLLAMA_MODEL", "kimi-k2.5:cloud")
-        self.client = ollama.Client(host=self.host)
+        self.base_url = base_url or os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+        self.model = model or os.getenv("OPENROUTER_MODEL", "google/gemini-flash-1.5")
+        self.client = OpenAI(api_key=self.api_key, base_url=self.base_url)
         self._format_dict = self._load_format()
         self.response_schema = build_schema_from_format(self._format_dict)
         self._circuit_open = False
@@ -299,26 +296,12 @@ class CompanyExtractorLLM:
             return json.load(f)
 
     def _extract_response_text(self, response: Any) -> str:
-        if isinstance(response, dict):
-            message = response.get("message") or {}
-            if isinstance(message, dict):
-                text = message.get("content") or message.get("response") or ""
-            else:
-                text = ""
-            return str(text).strip()
-
-        message = getattr(response, "message", None)
-        if message is not None:
-            text = getattr(message, "content", None) or getattr(message, "response", None) or ""
-            return str(text).strip()
-
-        text = getattr(response, "response", None) or getattr(response, "text", None) or ""
-        return str(text).strip()
+        return (response.choices[0].message.content or "").strip()
 
     def _load_json_from_text(self, text: str) -> dict[str, Any]:
         cleaned = text.strip()
         if not cleaned:
-            raise ValueError("Empty response from Ollama")
+            raise ValueError("Empty response from OpenRouter")
 
         if cleaned.startswith("```"):
             match = re.search(r"```(?:json)?\s*(.*?)\s*```", cleaned, re.DOTALL | re.IGNORECASE)
@@ -332,12 +315,12 @@ class CompanyExtractorLLM:
 
         data = json.loads(cleaned)
         if not isinstance(data, dict):
-            raise ValueError("Expected a JSON object from Ollama")
+            raise ValueError("Expected a JSON object from OpenRouter")
         return data
 
-    def _call_ollama(self, prompt: str) -> dict[str, Any]:
+    def _call_openrouter(self, prompt: str) -> dict[str, Any]:
         self._check_circuit()
-        response = self.client.chat(
+        response = self.client.chat.completions.create(
             model=self.model,
             messages=[
                 {
@@ -347,20 +330,18 @@ class CompanyExtractorLLM:
                 {
                     "role": "user",
                     "content": prompt,
-                }
+                },
             ],
-            format="json",
-            stream=False,
-            options={"temperature": 0},
+            temperature=0,
         )
         text = self._extract_response_text(response)
         if not text:
-            raise ValueError("Empty response from Ollama")
+            raise ValueError("Empty response from OpenRouter")
         return self._load_json_from_text(text)
 
     def _query_model(self, prompt: str) -> dict[str, Any]:
         try:
-            result = _retry_with_backoff(self._call_ollama, prompt)
+            result = _retry_with_backoff(self._call_openrouter, prompt)
             self._record_success()
             return result
         except Exception:
@@ -470,7 +451,7 @@ class CompanyExtractorLLM:
             result = self._post_process_consistency(result, financial_context)
             return result
         except Exception as e:
-            logger.error("Ollama extraction failed for %s: %s", symbol, e)
+            logger.error("OpenRouter extraction failed for %s: %s", symbol, e)
             return self._fallback_from_raw(raw_detail)
 
     def _post_process_consistency(self, data: dict[str, Any], ctx: dict[str, Any]) -> dict[str, Any]:

@@ -22,9 +22,9 @@ CACHE_REDIS_URL = os.getenv("CACHE_REDIS_URL", CELERY_BROKER_URL)
 CACHE_KEY_PREFIX = os.getenv("CACHE_KEY_PREFIX", "nepse:cache:")
 CACHE_TTL_SECONDS = int(os.getenv("CACHE_TTL_SECONDS", "14400"))
 
-OLLAMA_API_KEY = os.getenv("OLLAMA_API_KEY")
-OLLAMA_HOST = os.getenv("OLLAMA_HOST", "https://ollama.com")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "kimi-k2.5:cloud")
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+OPENROUTER_BASE_URL = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "google/gemini-flash-1.5")
 
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173")
 SITE_URL = os.getenv("SITE_URL", "https://nepseai.shubraj.com").rstrip("/")

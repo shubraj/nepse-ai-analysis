@@ -7,10 +7,7 @@ import random
 import time
 from typing import Any
 
-try:
-    import ollama
-except ImportError:
-    ollama = None
+from openai import OpenAI
 
 logger = logging.getLogger("SuggestionLLM")
 
@@ -133,15 +130,13 @@ def suggest_allocation_llm(
     candidates: list[dict[str, Any]],
     api_key: str | None = None,
     model: str | None = None,
-    host: str | None = None,
+    base_url: str | None = None,
 ) -> list[dict[str, Any]]:
-    if not ollama:
-        raise RuntimeError("ollama is required for AI suggestions. Install: pip install ollama")
-    key = api_key or os.getenv("OLLAMA_API_KEY")
+    key = api_key or os.getenv("OPENROUTER_API_KEY")
     if not key:
-        raise ValueError("OLLAMA_API_KEY is required for AI suggestions")
-    model_name = model or os.getenv("OLLAMA_MODEL", "kimi-k2.5:cloud")
-    host_url = host or os.getenv("OLLAMA_HOST", "https://ollama.com")
+        raise ValueError("OPENROUTER_API_KEY is required for AI suggestions")
+    model_name = model or os.getenv("OPENROUTER_MODEL", "google/gemini-flash-1.5")
+    openrouter_base_url = base_url or os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
 
     if not candidates or amount_npr < 1000:
         return []
@@ -175,10 +170,10 @@ Candidates:
 Analysis signals:
 {analysis_signals}"""
 
-    client = ollama.Client(host=host_url)
+    client = OpenAI(api_key=key, base_url=openrouter_base_url)
 
     def _call_suggestion():
-        response = client.chat(
+        response = client.chat.completions.create(
             model=model_name,
             messages=[
                 {
@@ -188,18 +183,17 @@ Analysis signals:
                 {
                     "role": "user",
                     "content": prompt,
-                }
+                },
             ],
-            format="json",
-            stream=False,
-            options={"temperature": 0},
+            temperature=0,
         )
-        message = response.get("message", {}) if isinstance(response, dict) else {}
-        if isinstance(message, dict):
-            text = message.get("content") or message.get("response") or ""
-        else:
-            text = getattr(response, "message", None) and getattr(response.message, "content", None) or getattr(response, "text", None) or ""
-        text = str(text).strip()
+        text = (response.choices[0].message.content or "").strip()
+        # strip markdown fences if present
+        if text.startswith("```"):
+            import re
+            m = re.search(r"```(?:json)?\s*(.*?)\s*```", text, re.DOTALL | re.IGNORECASE)
+            if m:
+                text = m.group(1).strip()
         data = json.loads(text)
         suggestions = data.get("suggestions") if isinstance(data, dict) else None
         if not isinstance(suggestions, list):

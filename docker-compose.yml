@@ -11,6 +11,9 @@ services:
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - CORS_ORIGINS=http://localhost:8212,http://127.0.0.1:8212,http://localhost,http://127.0.0.1
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - OPENROUTER_BASE_URL=${OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}
+      - OPENROUTER_MODEL=${OPENROUTER_MODEL:-google/gemini-flash-1.5}
     volumes:
       - backend_logs:/app/logs
     expose:
@@ -57,6 +60,9 @@ services:
       - DATABASE_URL=postgresql+psycopg2://postgres:postgres@postgres:5432/nepseanalysis
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - OPENROUTER_BASE_URL=${OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}
+      - OPENROUTER_MODEL=${OPENROUTER_MODEL:-google/gemini-flash-1.5}
     volumes:
       - backend_logs:/app/logs
     depends_on:
@@ -75,6 +81,9 @@ services:
       - DATABASE_URL=postgresql+psycopg2://postgres:postgres@postgres:5432/nepseanalysis
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - OPENROUTER_BASE_URL=${OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}
+      - OPENROUTER_MODEL=${OPENROUTER_MODEL:-google/gemini-flash-1.5}
     depends_on:
       redis:
         condition: service_healthy
