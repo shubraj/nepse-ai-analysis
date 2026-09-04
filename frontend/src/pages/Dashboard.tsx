@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api/client";
+import { SectorHeatmap } from "../components/SectorHeatmap";
 import { useWatchlist } from "../contexts/WatchlistContext";
 import { updatePageMeta, addJsonLd, createBreadcrumbSchema, createWebPageSchema, toAbsoluteUrl } from "../lib/seo";
 import type {
@@ -284,32 +285,9 @@ export function Dashboard() {
       {sectorPerformance.length > 0 && (
         <section className="surface-card rounded-3xl p-6">
           <h2 className="font-display text-lg font-semibold text-stone-900">Sector performance</h2>
-          <p className="mt-1 text-sm text-stone-500">Average price change by sector (recent trend).</p>
-          <div className="mt-4 overflow-x-auto">
-            <table className="w-full min-w-[320px] text-sm">
-              <thead>
-                <tr className="border-b border-stone-200 text-left text-stone-500">
-                  <th className="pb-2 pr-4 font-medium">Sector</th>
-                  <th className="pb-2 pr-4 font-medium text-right">Avg %</th>
-                  <th className="pb-2 pr-4 font-medium text-right">Up</th>
-                  <th className="pb-2 pr-4 font-medium text-right">Down</th>
-                  <th className="pb-2 font-medium text-right">Stocks</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sectorPerformance.slice(0, 12).map((row) => (
-                  <tr key={row.sector} className="border-b border-stone-100">
-                    <td className="py-2.5 pr-4 font-medium text-stone-800">{row.sector}</td>
-                    <td className={`py-2.5 pr-4 text-right font-medium ${row.avg_pct_change >= 0 ? "text-emerald-600" : "text-red-600"}`}>
-                      {row.avg_pct_change >= 0 ? "+" : ""}{row.avg_pct_change}%
-                    </td>
-                    <td className="py-2.5 pr-4 text-right text-stone-600">{row.stocks_up}</td>
-                    <td className="py-2.5 pr-4 text-right text-stone-600">{row.stocks_down}</td>
-                    <td className="py-2.5 text-right text-stone-500">{row.count}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <p className="mt-1 text-sm text-stone-500">Average price change by sector (recent trend). Box size = number of stocks.</p>
+          <div className="mt-4">
+            <SectorHeatmap sectors={sectorPerformance} />
           </div>
           <Link to="/companies" className="mt-3 inline-block text-sm font-medium text-teal-600 hover:text-teal-700">
             View all companies →
