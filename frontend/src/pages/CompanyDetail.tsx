@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api } from "../api/client";
+import { PriceChart } from "../components/PriceChart";
 import { useWatchlist } from "../contexts/WatchlistContext";
 import {
   updatePageMeta,
@@ -646,6 +647,8 @@ export function CompanyDetail() {
           );
         })()}
       </header>
+
+      <PriceChart symbol={company.symbol} />
 
       <CurrentValuesSection sector={company.sector} overview={company.overview} />
 

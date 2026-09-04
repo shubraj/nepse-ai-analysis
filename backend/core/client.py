@@ -2,12 +2,19 @@
 
 import json
 import re
+from datetime import datetime
 from typing import Any
 
 from curl_cffi import requests
 from bs4 import BeautifulSoup
 
 NEPSEALPHA_TRADED_STOCKS_URL = "https://nepsealpha.com/traded-stocks"
+NEPSEALPHA_HISTORY_URL = "https://nepsealpha.com/trading/1/history"
+# Cloudflare only edge-caches this exact frame value for /trading/1/history;
+# any other frame is a cache MISS and gets bot-challenged. Fetch the full
+# series at this fixed frame and slice client/server-side as needed.
+_HISTORY_FRAME = 1000
+_HISTORY_FSK = "ImoDk7zT"
 
 
 class MerolaganiClient:
@@ -98,6 +105,42 @@ class MerolaganiClient:
                 row["sector"] = sector
             result.append(row)
         return result
+
+    def get_price_history(self, symbol: str) -> list[dict[str, Any]]:
+        """Daily OHLCV history for a symbol, via nepsealpha's chart datafeed."""
+        r = self.session.get(
+            NEPSEALPHA_HISTORY_URL,
+            params={
+                "fsk": _HISTORY_FSK,
+                "symbol": symbol.upper(),
+                "resolution": "1D",
+                "frame": _HISTORY_FRAME,
+            },
+            timeout=self.timeout,
+            impersonate="chrome",
+        )
+        r.raise_for_status()
+        data = r.json()
+        if data.get("s") != "ok":
+            return []
+        t = data.get("t") or []
+        o = data.get("o") or []
+        h = data.get("h") or []
+        l = data.get("l") or []
+        c = data.get("c") or []
+        v = data.get("v") or []
+        n = min(len(t), len(o), len(h), len(l), len(c), len(v))
+        out = []
+        for i in range(n):
+            out.append({
+                "date": datetime.utcfromtimestamp(int(t[i])).strftime("%Y-%m-%d"),
+                "open": o[i],
+                "high": h[i],
+                "low": l[i],
+                "close": c[i],
+                "volume": v[i],
+            })
+        return out
 
     def _norm_key(self, label: str) -> str:
         key = label.strip().lower().replace(" ", "_").replace("-", "_").replace("%", "pct")

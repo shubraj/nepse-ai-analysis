@@ -82,3 +82,12 @@ export interface SectorPerformanceResponse {
 export interface PageViewCountResponse {
   total: number;
 }
+
+export interface PricePoint {
+  date: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}

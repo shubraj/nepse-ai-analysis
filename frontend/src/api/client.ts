@@ -62,6 +62,14 @@ export const api = {
     request<import("../types/company").CompanyAnalysisResponse>(
       `/companies/${encodeURIComponent(symbol)}/analyses/${analysisId}`
     ),
+  getPriceHistory: (symbol: string, days?: number) => {
+    const sp = new URLSearchParams();
+    if (days != null) sp.set("days", String(days));
+    const q = sp.toString();
+    return request<import("../types/company").PricePoint[]>(
+      `/companies/${encodeURIComponent(symbol)}/price-history${q ? `?${q}` : ""}`
+    );
+  },
   getSuggestions: (params: { amount_npr: number; goal: "short_term" | "mid_term" | "long_term"; max_stocks?: number }) => {
     const sp = new URLSearchParams();
     sp.set("amount_npr", String(params.amount_npr));

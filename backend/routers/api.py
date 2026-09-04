@@ -251,6 +251,38 @@ def get_company(
     return company
 
 
+PRICE_HISTORY_CACHE_TTL = 6 * 3600  # 6 hours — price updates once/day after market close
+
+
+def _price_history_key(symbol: str) -> str:
+    return f"{CACHE_KEY_PREFIX}price-history:{symbol.upper()}"
+
+
+@router.get("/companies/{symbol}/price-history")
+def get_company_price_history(
+    symbol: str,
+    days: int = Query(365, ge=1, le=3650, description="Number of most recent trading days to return"),
+    db: Session = Depends(get_db),
+):
+    symbol = symbol.upper()
+    company = db.query(Company).filter(Company.symbol == symbol).first()
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found")
+
+    cache_key = _price_history_key(symbol)
+    cached = cache_get(cache_key)
+    if cached is None:
+        from core.client import MerolaganiClient
+        try:
+            with MerolaganiClient() as client:
+                cached = client.get_price_history(symbol)
+        except Exception:
+            raise HTTPException(status_code=502, detail="Price history unavailable")
+        cache_set(cache_key, cached, ttl=PRICE_HISTORY_CACHE_TTL)
+
+    return cached[-days:] if cached else []
+
+
 def _company_analyses_list_key(symbol: str) -> str:
     return f"{CACHE_KEY_PREFIX}company:{symbol.upper()}:analyses"
 
