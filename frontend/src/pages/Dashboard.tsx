@@ -79,7 +79,7 @@ const GOAL_OPTIONS: { value: "short_term" | "mid_term" | "long_term"; label: str
 const SHOW_INVESTMENT_SUGGESTION = false;
 
 function formatNpr(n: number) {
-  return `NPR ${n.toLocaleString("en-NP")}`;
+  return `NPR ${n.toLocaleString("en-IN")}`;
 }
 
 export function Dashboard() {

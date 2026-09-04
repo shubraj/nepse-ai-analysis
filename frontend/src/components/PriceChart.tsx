@@ -27,7 +27,7 @@ function formatDate(d: string): string {
 const INVEST_AMOUNT = 100000;
 
 function formatNpr(n: number): string {
-  return `Rs ${n.toLocaleString("en-NP", { maximumFractionDigits: 0 })}`;
+  return `Rs ${n.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
 }
 
 export function PriceChart({ symbol }: { symbol: string }) {
@@ -174,7 +174,7 @@ export function PriceChart({ symbol }: { symbol: string }) {
               tickFormatter={(v: number) => `Rs ${v.toLocaleString()}`}
             />
             <Tooltip
-              formatter={(value) => [`Rs ${Number(value).toLocaleString("en-NP", { minimumFractionDigits: 2 })}`, "Close"]}
+              formatter={(value) => [`Rs ${Number(value).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`, "Close"]}
               labelFormatter={(label) =>
                 new Date(String(label)).toLocaleDateString(undefined, { dateStyle: "medium" })
               }

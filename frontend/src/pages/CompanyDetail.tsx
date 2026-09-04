@@ -115,10 +115,10 @@ const OVERVIEW_LABELS: Record<string, string> = {
 function formatOverviewValue(key: string, value: string): string {
   const num = parseFloat(value.replace(/[,\s]/g, ""));
   const isNum = !Number.isNaN(num);
-  if (key === "market_price" && isNum) return `Rs ${num.toLocaleString("en-NP", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  if (key === "market_price" && isNum) return `Rs ${num.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   if (key === "pct_change" && isNum) return `${num >= 0 ? "+" : ""}${num}%`;
-  if (["market_capitalization", "shares_outstanding", "30_day_avg_volume"].includes(key) && isNum) return num.toLocaleString("en-NP");
-  if (["p_e_ratio", "pe_ratio", "book_value", "eps", "pbv", "120_day_average", "1_year_yield"].includes(key) && isNum) return num.toLocaleString("en-NP", { maximumFractionDigits: 2 });
+  if (["market_capitalization", "shares_outstanding", "30_day_avg_volume"].includes(key) && isNum) return num.toLocaleString("en-IN");
+  if (["p_e_ratio", "pe_ratio", "book_value", "eps", "pbv", "120_day_average", "1_year_yield"].includes(key) && isNum) return num.toLocaleString("en-IN", { maximumFractionDigits: 2 });
   return value;
 }
 

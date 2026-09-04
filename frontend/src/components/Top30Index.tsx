@@ -34,7 +34,7 @@ function formatMarketCap(n: number): string {
 const INVEST_AMOUNT = 100000;
 
 function formatNpr(n: number): string {
-  return `Rs ${n.toLocaleString("en-NP", { maximumFractionDigits: 0 })}`;
+  return `Rs ${n.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
 }
 
 export function Top30Index() {
