@@ -317,8 +317,14 @@ def get_company_dividends(symbol: str, db: Session = Depends(get_db)):
     if not company:
         raise HTTPException(status_code=404, detail="Company not found")
 
-    from services.dividend_utils import get_dividend_events
-    events = get_dividend_events((company.raw_detail or {}).get("dividend_history") or [])
+    from services.dividend_utils import DEFAULT_FACE_VALUE, get_dividend_events
+    about = (company.raw_detail or {}).get("about") or {}
+    try:
+        face_value = float(str(about.get("paidup_value", "")).replace(",", "").strip())
+    except (TypeError, ValueError):
+        face_value = DEFAULT_FACE_VALUE
+
+    events = get_dividend_events((company.raw_detail or {}).get("dividend_history") or [], face_value=face_value)
     cache_set(cache_key, events, ttl=DIVIDENDS_CACHE_TTL)
     return events
 
