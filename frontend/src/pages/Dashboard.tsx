@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api/client";
 import { SectorHeatmap } from "../components/SectorHeatmap";
+import { Top30Index } from "../components/Top30Index";
 import { useWatchlist } from "../contexts/WatchlistContext";
 import { updatePageMeta, addJsonLd, createBreadcrumbSchema, createWebPageSchema, toAbsoluteUrl } from "../lib/seo";
 import type {
@@ -281,6 +282,8 @@ export function Dashboard() {
           </div>
         </section>
       )}
+
+      <Top30Index />
 
       {sectorPerformance.length > 0 && (
         <section className="surface-card rounded-3xl p-6">

@@ -251,6 +251,15 @@ def get_company(
     return company
 
 
+@router.get("/index/top30")
+def get_top30_index(
+    days: int = Query(365, ge=1, le=3650, description="Number of most recent trading days to return"),
+    db: Session = Depends(get_db),
+):
+    from services.top30_index import compute_top30_index
+    return compute_top30_index(db, days=days)
+
+
 PRICE_HISTORY_CACHE_TTL = 6 * 3600  # 6 hours — price updates once/day after market close
 
 

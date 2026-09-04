@@ -88,4 +88,12 @@ export const api = {
     }),
   getPageViewCount: () =>
     request<import("../types/company").PageViewCountResponse>("/pageview/count"),
+  getTop30Index: (days?: number) => {
+    const sp = new URLSearchParams();
+    if (days != null) sp.set("days", String(days));
+    const q = sp.toString();
+    return request<import("../types/company").Top30IndexResponse>(
+      `/index/top30${q ? `?${q}` : ""}`
+    );
+  },
 };

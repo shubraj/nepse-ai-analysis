@@ -91,3 +91,21 @@ export interface PricePoint {
   close: number;
   volume: number;
 }
+
+export interface IndexPoint {
+  date: string;
+  value: number;
+}
+
+export interface Top30ConstituentItem {
+  symbol: string;
+  name: string;
+  sector: string | null;
+  market_cap: number;
+  weight_pct: number;
+}
+
+export interface Top30IndexResponse {
+  series: IndexPoint[];
+  constituents: Top30ConstituentItem[];
+}
