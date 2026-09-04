@@ -31,6 +31,12 @@ function formatMarketCap(n: number): string {
   return `Rs ${n.toLocaleString()}`;
 }
 
+const INVEST_AMOUNT = 100000;
+
+function formatNpr(n: number): string {
+  return `Rs ${n.toLocaleString("en-NP", { maximumFractionDigits: 0 })}`;
+}
+
 export function Top30Index() {
   const [allSeries, setAllSeries] = useState<IndexPoint[] | null>(null);
   const [constituents, setConstituents] = useState<Top30ConstituentItem[]>([]);
@@ -67,14 +73,29 @@ export function Top30Index() {
     return allSeries.slice(-range);
   }, [allSeries, range]);
 
-  const { changePct, isUp, latestValue } = useMemo(() => {
-    if (data.length < 2) return { changePct: null as number | null, isUp: true, latestValue: null as number | null };
+  const { changePct, isUp, latestValue, startDate, endDate } = useMemo(() => {
+    if (data.length < 2)
+      return {
+        changePct: null as number | null,
+        isUp: true,
+        latestValue: null as number | null,
+        startDate: null as string | null,
+        endDate: null as string | null,
+      };
     const first = data[0].value;
     const last = data[data.length - 1].value;
-    if (!first) return { changePct: null, isUp: true, latestValue: last };
+    if (!first) return { changePct: null, isUp: true, latestValue: last, startDate: null, endDate: null };
     const pct = ((last - first) / first) * 100;
-    return { changePct: pct, isUp: pct >= 0, latestValue: last };
+    return {
+      changePct: pct,
+      isUp: pct >= 0,
+      latestValue: last,
+      startDate: data[0].date,
+      endDate: data[data.length - 1].date,
+    };
   }, [data]);
+
+  const investedValue = changePct != null ? INVEST_AMOUNT * (1 + changePct / 100) : null;
 
   if (loading) {
     return (
@@ -130,6 +151,31 @@ export function Top30Index() {
           ))}
         </div>
       </div>
+
+      {investedValue != null && startDate && endDate && (
+        <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 rounded-xl border border-stone-200 bg-stone-50/70 px-4 py-3">
+          <div>
+            <p className="text-[11px] uppercase tracking-wide text-stone-500">
+              If you invested {formatNpr(INVEST_AMOUNT)} on{" "}
+              {new Date(startDate).toLocaleDateString(undefined, { dateStyle: "medium" })}
+            </p>
+            <p className="mt-0.5 text-sm text-stone-600">
+              It would be worth this today ({new Date(endDate).toLocaleDateString(undefined, { dateStyle: "medium" })})
+            </p>
+          </div>
+          <div className="ml-auto flex items-baseline gap-2">
+            <span className={`font-display text-2xl font-bold ${isUp ? "text-emerald-600" : "text-red-600"}`}>
+              {formatNpr(investedValue)}
+            </span>
+            {changePct != null && (
+              <span className={`text-sm font-medium ${isUp ? "text-emerald-600" : "text-red-600"}`}>
+                ({isUp ? "+" : ""}
+                {changePct.toFixed(2)}%)
+              </span>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="mt-3 h-64 w-full">
         <ResponsiveContainer width="100%" height="100%">
