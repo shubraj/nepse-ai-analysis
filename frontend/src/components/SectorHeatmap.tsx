@@ -128,7 +128,8 @@ function CellContent(props: {
         y={y}
         width={width}
         height={height}
-        style={{ fill, stroke: "#fff", strokeWidth: 1.5 }}
+        shapeRendering="crispEdges"
+        style={{ fill, stroke: "#fff", strokeWidth: 2 }}
       />
       {nameLines.map((line, i) => (
         <text
@@ -202,7 +203,7 @@ export function SectorHeatmap({ sectors }: { sectors: SectorPerformanceItem[] })
 
   return (
     <div>
-      <div className="h-[420px] w-full">
+      <div className="h-[420px] w-full overflow-hidden rounded-lg bg-stone-200 p-0.5">
         <ResponsiveContainer width="100%" height="100%">
           <Treemap
             data={data}
