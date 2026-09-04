@@ -139,6 +139,7 @@ function CellContent(props: {
           textAnchor="middle"
           dominantBaseline="middle"
           fill={textColor}
+          stroke="none"
           fontSize={nameFontSize}
           fontWeight={700}
         >
@@ -152,6 +153,7 @@ function CellContent(props: {
           textAnchor="middle"
           dominantBaseline="middle"
           fill={textColor}
+          stroke="none"
           fontSize={pctFontSize}
           fontWeight={500}
         >
@@ -209,7 +211,6 @@ export function SectorHeatmap({ sectors }: { sectors: SectorPerformanceItem[] })
             data={data}
             dataKey="size"
             nameKey="name"
-            stroke="#fff"
             aspectRatio={4 / 3}
             isAnimationActive={false}
             content={<CellContent />}
