@@ -8,7 +8,7 @@ import {
   YAxis,
 } from "recharts";
 import { api } from "../api/client";
-import type { PricePoint } from "../types/company";
+import type { DividendEvent, PricePoint } from "../types/company";
 
 const RANGES: { label: string; days: number }[] = [
   { label: "1M", days: 30 },
@@ -30,8 +30,40 @@ function formatNpr(n: number): string {
   return `Rs ${n.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
 }
 
+/**
+ * Simulates reinvesting each cash dividend into new shares at the nearest
+ * available close on/after its (approximate, fiscal-year-end) date.
+ * Bonus/rights shares are not modeled — Merolagani's own bonus-history data
+ * is too sparse per company to be a reliable basis for that adjustment.
+ */
+function simulateReinvested(
+  data: PricePoint[],
+  dividends: DividendEvent[],
+  investAmount: number
+): { finalValue: number; dividendCount: number } | null {
+  if (data.length < 2 || !data[0].close) return null;
+  let shares = investAmount / data[0].close;
+  const startDate = data[0].date;
+  const endDate = data[data.length - 1].date;
+  const inRange = dividends
+    .filter((d) => d.date >= startDate && d.date <= endDate)
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  let di = 0;
+  for (const point of data) {
+    while (di < inRange.length && inRange[di].date <= point.date) {
+      const cash = shares * inRange[di].amount_per_share;
+      shares += cash / point.close;
+      di += 1;
+    }
+  }
+  const lastClose = data[data.length - 1].close;
+  return { finalValue: shares * lastClose, dividendCount: inRange.length };
+}
+
 export function PriceChart({ symbol }: { symbol: string }) {
   const [allData, setAllData] = useState<PricePoint[] | null>(null);
+  const [dividends, setDividends] = useState<DividendEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [range, setRange] = useState(365);
@@ -40,10 +72,15 @@ export function PriceChart({ symbol }: { symbol: string }) {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    api
-      .getPriceHistory(symbol, 3650)
-      .then((data) => {
-        if (!cancelled) setAllData(data);
+    Promise.all([
+      api.getPriceHistory(symbol, 3650),
+      api.getDividends(symbol).catch(() => []),
+    ])
+      .then(([priceData, divData]) => {
+        if (!cancelled) {
+          setAllData(priceData);
+          setDividends(divData);
+        }
       })
       .catch((e) => {
         if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load price history");
@@ -77,6 +114,9 @@ export function PriceChart({ symbol }: { symbol: string }) {
   }, [data]);
 
   const investedValue = changePct != null ? INVEST_AMOUNT * (1 + changePct / 100) : null;
+
+  const reinvested = useMemo(() => simulateReinvested(data, dividends, INVEST_AMOUNT), [data, dividends]);
+  const reinvestedChangePct = reinvested ? ((reinvested.finalValue - INVEST_AMOUNT) / INVEST_AMOUNT) * 100 : null;
 
   if (loading) {
     return (
@@ -124,27 +164,48 @@ export function PriceChart({ symbol }: { symbol: string }) {
       </div>
 
       {investedValue != null && startDate && endDate && (
-        <div className="mb-4 flex flex-wrap items-center gap-x-6 gap-y-2 rounded-xl border border-stone-200 bg-stone-50/70 px-4 py-3">
-          <div>
-            <p className="text-[11px] uppercase tracking-wide text-stone-500">
-              If you invested {formatNpr(INVEST_AMOUNT)} on{" "}
-              {new Date(startDate).toLocaleDateString(undefined, { dateStyle: "medium" })}
-            </p>
-            <p className="mt-0.5 text-sm text-stone-600">
-              It would be worth this today ({new Date(endDate).toLocaleDateString(undefined, { dateStyle: "medium" })})
-            </p>
-          </div>
-          <div className="ml-auto flex items-baseline gap-2">
-            <span className={`font-display text-2xl font-bold ${isUp ? "text-emerald-600" : "text-red-600"}`}>
-              {formatNpr(investedValue)}
-            </span>
-            {changePct != null && (
-              <span className={`text-sm font-medium ${isUp ? "text-emerald-600" : "text-red-600"}`}>
-                ({isUp ? "+" : ""}
-                {changePct.toFixed(2)}%)
+        <div className="mb-4 rounded-xl border border-stone-200 bg-stone-50/70 px-4 py-3">
+          <p className="text-[11px] uppercase tracking-wide text-stone-500">
+            If you invested {formatNpr(INVEST_AMOUNT)} on{" "}
+            {new Date(startDate).toLocaleDateString(undefined, { dateStyle: "medium" })}, worth today (
+            {new Date(endDate).toLocaleDateString(undefined, { dateStyle: "medium" })})
+          </p>
+
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-x-6 gap-y-1">
+            <span className="text-sm text-stone-600">Price only</span>
+            <div className="flex items-baseline gap-2">
+              <span className={`font-display text-xl font-bold ${isUp ? "text-emerald-600" : "text-red-600"}`}>
+                {formatNpr(investedValue)}
               </span>
-            )}
+              {changePct != null && (
+                <span className={`text-sm font-medium ${isUp ? "text-emerald-600" : "text-red-600"}`}>
+                  ({isUp ? "+" : ""}
+                  {changePct.toFixed(2)}%)
+                </span>
+              )}
+            </div>
           </div>
+
+          {reinvested && reinvestedChangePct != null && (
+            <div className="mt-1.5 flex flex-wrap items-center justify-between gap-x-6 gap-y-1 border-t border-stone-200/80 pt-1.5">
+              <span className="text-sm text-stone-600">
+                With dividends reinvested
+                {reinvested.dividendCount > 0 ? ` (${reinvested.dividendCount} payout${reinvested.dividendCount > 1 ? "s" : ""})` : ""}
+              </span>
+              <div className="flex items-baseline gap-2">
+                <span className={`font-display text-xl font-bold ${reinvestedChangePct >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                  {formatNpr(reinvested.finalValue)}
+                </span>
+                <span className={`text-sm font-medium ${reinvestedChangePct >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                  ({reinvestedChangePct >= 0 ? "+" : ""}
+                  {reinvestedChangePct.toFixed(2)}%)
+                </span>
+              </div>
+            </div>
+          )}
+          <p className="mt-2 text-[11px] text-stone-400">
+            Dividend dates are approximate (fiscal-year-end). Bonus/right shares aren&apos;t included — reliable historical data isn&apos;t available for most companies.
+          </p>
         </div>
       )}
 

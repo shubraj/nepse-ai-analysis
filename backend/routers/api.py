@@ -292,6 +292,37 @@ def get_company_price_history(
     return cached[-days:] if cached else []
 
 
+DIVIDENDS_CACHE_TTL = 24 * 3600  # dividend history only changes on the nightly sync
+
+
+def _dividends_key(symbol: str) -> str:
+    return f"{CACHE_KEY_PREFIX}dividends:{symbol.upper()}"
+
+
+@router.get("/companies/{symbol}/dividends")
+def get_company_dividends(symbol: str, db: Session = Depends(get_db)):
+    """
+    Approximate cash dividend events (Rs/share, fiscal-year-end dated) for
+    reinvestment calculators. Bonus/rights share history is not included —
+    Merolagani's own source data for those is too sparse per company to be
+    reliable (many companies show 0-1 records despite known real issuances).
+    """
+    symbol = symbol.upper()
+    cache_key = _dividends_key(symbol)
+    cached = cache_get(cache_key)
+    if cached is not None:
+        return cached
+
+    company = db.query(Company).filter(Company.symbol == symbol).first()
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found")
+
+    from services.dividend_utils import get_dividend_events
+    events = get_dividend_events((company.raw_detail or {}).get("dividend_history") or [])
+    cache_set(cache_key, events, ttl=DIVIDENDS_CACHE_TTL)
+    return events
+
+
 def _company_analyses_list_key(symbol: str) -> str:
     return f"{CACHE_KEY_PREFIX}company:{symbol.upper()}:analyses"
 

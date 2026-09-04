@@ -92,6 +92,12 @@ export interface PricePoint {
   volume: number;
 }
 
+export interface DividendEvent {
+  date: string;
+  amount_per_share: number;
+  fiscal_year: string;
+}
+
 export interface IndexPoint {
   date: string;
   value: number;

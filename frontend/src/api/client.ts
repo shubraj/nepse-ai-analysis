@@ -70,6 +70,10 @@ export const api = {
       `/companies/${encodeURIComponent(symbol)}/price-history${q ? `?${q}` : ""}`
     );
   },
+  getDividends: (symbol: string) =>
+    request<import("../types/company").DividendEvent[]>(
+      `/companies/${encodeURIComponent(symbol)}/dividends`
+    ),
   getSuggestions: (params: { amount_npr: number; goal: "short_term" | "mid_term" | "long_term"; max_stocks?: number }) => {
     const sp = new URLSearchParams();
     sp.set("amount_npr", String(params.amount_npr));
